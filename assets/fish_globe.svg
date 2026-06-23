@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 96" width="100" height="96">
+  <defs>
+    <radialGradient id="gbody" cx=".42" cy=".38" r=".7">
+      <stop offset="0" stop-color="#ffe98a"/>
+      <stop offset=".6" stop-color="#ffce3f"/>
+      <stop offset="1" stop-color="#e2a417"/>
+    </radialGradient>
+  </defs>
+  <!-- piquants -->
+  <g fill="#f0b32a">
+    <path d="M50 6 l6 12 -12 0 z"/>
+    <path d="M82 22 l8 -4 -2 12 z"/>
+    <path d="M90 50 l12 0 -8 8 z"/>
+    <path d="M82 78 l10 6 -12 2 z"/>
+    <path d="M50 92 l6 -12 -12 0 z"/>
+    <path d="M18 78 l-10 6 12 2 z"/>
+    <path d="M10 50 l-12 0 8 8 z"/>
+    <path d="M18 22 l-8 -4 2 12 z"/>
+  </g>
+  <!-- petite queue -->
+  <path d="M14 48 L2 38 Q8 48 2 58 Z" fill="#f0b32a"/>
+  <!-- corps rond -->
+  <circle cx="50" cy="50" r="36" fill="url(#gbody)"/>
+  <!-- ventre -->
+  <ellipse cx="50" cy="62" rx="24" ry="16" fill="#fff3bf" opacity=".7"/>
+  <!-- taches -->
+  <g fill="#e2a417" opacity=".55">
+    <circle cx="38" cy="40" r="3"/><circle cx="60" cy="44" r="2.5"/>
+    <circle cx="46" cy="56" r="2.5"/><circle cx="62" cy="60" r="2"/>
+  </g>
+  <!-- joues -->
+  <circle cx="34" cy="56" r="5" fill="#ff9eb0" opacity=".55"/>
+  <circle cx="66" cy="56" r="5" fill="#ff9eb0" opacity=".55"/>
+  <!-- yeux -->
+  <circle cx="40" cy="44" r="7" fill="#fff"/>
+  <circle cx="60" cy="44" r="7" fill="#fff"/>
+  <circle cx="41" cy="45" r="3.6" fill="#222"/>
+  <circle cx="61" cy="45" r="3.6" fill="#222"/>
+  <circle cx="42.4" cy="43.6" r="1.1" fill="#fff"/>
+  <circle cx="62.4" cy="43.6" r="1.1" fill="#fff"/>
+  <!-- bouche -->
+  <path d="M44 64 q6 6 12 0" stroke="#c98a13" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>

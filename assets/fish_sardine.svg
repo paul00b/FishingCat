@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 52" width="110" height="52">
+  <defs>
+    <linearGradient id="sbody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cdd8e2"/>
+      <stop offset=".5" stop-color="#9fb0bf"/>
+      <stop offset="1" stop-color="#7d909f"/>
+    </linearGradient>
+  </defs>
+  <!-- queue -->
+  <path d="M22 26 L4 10 Q14 26 4 42 Z" fill="#8c9caa"/>
+  <!-- nageoires -->
+  <path d="M50 14 q12 -10 22 -4 q-10 4 -14 12 z" fill="#8696a5"/>
+  <path d="M48 40 q8 8 18 6 q-8 -6 -10 -12 z" fill="#8696a5"/>
+  <!-- corps -->
+  <ellipse cx="58" cy="26" rx="40" ry="19" fill="url(#sbody)"/>
+  <!-- ligne latérale + reflet -->
+  <path d="M28 22 Q58 14 92 22" stroke="#eef4f8" stroke-width="2" fill="none" opacity=".7"/>
+  <path d="M30 30 Q60 36 90 30" stroke="#6b7d8c" stroke-width="1.5" fill="none" opacity=".5"/>
+  <!-- ouïe -->
+  <path d="M78 12 Q72 26 78 40" stroke="#6b7d8c" stroke-width="2" fill="none"/>
+  <!-- oeil -->
+  <circle cx="88" cy="22" r="6" fill="#fff"/>
+  <circle cx="89" cy="22" r="3.2" fill="#222"/>
+  <circle cx="90.2" cy="20.8" r="1" fill="#fff"/>
+</svg>

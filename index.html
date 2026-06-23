@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <title>The Hole — Le Chat Pêcheur</title>
+  <link rel="stylesheet" href="style.css?v=3" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ====================== ZONE DE JEU ====================== -->
+    <main id="stage">
+      <canvas id="game"></canvas>
+
+      <!-- HUD haut -->
+      <div id="hud">
+        <div class="hud-item money">
+          <span class="ico">💰</span>
+          <span id="money">0</span>
+        </div>
+        <div class="hud-item gold" id="gold-wrap" hidden>
+          <span class="ico">🪙</span>
+          <span id="gold">0</span>
+          <small>Écailles</small>
+        </div>
+        <div class="hud-item rate">
+          <span class="ico">💵</span>
+          <span id="rate">0</span><small>$/s</small>
+        </div>
+      </div>
+
+      <!-- Bandeau frénésie -->
+      <div id="frenzy-banner" hidden>🔥 FRÉNÉSIE ×2 🔥</div>
+
+      <!-- Son -->
+      <button id="mute-btn" aria-label="Son">🔊</button>
+
+      <!-- Compétences actives -->
+      <div id="skills">
+        <button id="net-btn" class="skill-btn" hidden>
+          <span class="skill-ico">🪣</span>
+          <span class="skill-label">Épuisette</span>
+          <span class="skill-cd"></span>
+        </button>
+      </div>
+
+      <!-- Astuce / tutoriel -->
+      <div id="hint">Maintiens le clic dans l'<b>eau</b> pour pêcher 🎣 — puis attrape le poisson et <b>lance-le</b> dans le seau !</div>
+
+      <!-- Bouton ouverture boutique (mobile) -->
+      <button id="shop-toggle" aria-label="Boutique">🛒</button>
+    </main>
+
+    <!-- ====================== BOUTIQUE ====================== -->
+    <aside id="shop">
+      <header class="shop-head">
+        <h1>The&nbsp;Hole</h1>
+        <button id="shop-close" aria-label="Fermer">✕</button>
+      </header>
+
+      <nav class="shop-tabs">
+        <button class="tab active" data-tab="shop">Boutique</button>
+        <button class="tab" data-tab="prestige">Sacrifice</button>
+      </nav>
+
+      <div id="tab-shop" class="tab-panel active">
+        <div id="shop-list"><!-- généré par JS --></div>
+      </div>
+
+      <div id="tab-prestige" class="tab-panel">
+        <div class="prestige-box">
+          <p class="prestige-intro">Sacrifie tout ton empire pour des <b>Écailles d'Or</b> 🪙 et des bonus permanents.</p>
+          <div class="prestige-gain">
+            Gain au sacrifice : <b id="prestige-gain">0</b> 🪙
+          </div>
+          <button id="prestige-btn" disabled>Sacrifier 🌀</button>
+          <div id="perm-list"><!-- généré par JS --></div>
+        </div>
+      </div>
+
+      <footer class="shop-foot">
+        <button id="save-btn" class="mini">💾 Sauver</button>
+        <button id="reset-btn" class="mini danger">🗑 Effacer</button>
+      </footer>
+    </aside>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
