@@ -56,6 +56,15 @@ body{ user-select:none; -webkit-user-select:none; }
 #mute-btn:active{ transform:scale(.94); }
 #mute-btn.muted{ opacity:.5; }
 
+/* Replacer le râteau (au-dessus du bouton son) */
+#rake-reset{
+  position:absolute; bottom:76px; right:18px; width:48px; height:48px; border-radius:14px;
+  border:1px solid rgba(255,255,255,.08); background:rgba(8,20,32,.72); backdrop-filter:blur(8px);
+  color:#fff; font-size:22px; cursor:pointer; box-shadow:var(--shadow); z-index:5;
+}
+#rake-reset[hidden]{ display:none; }
+#rake-reset:active{ transform:scale(.94); }
+
 /* Skills */
 #skills{ position:absolute; bottom:18px; left:18px; display:flex; gap:12px; }
 .skill-btn{
@@ -184,6 +193,18 @@ body{ user-select:none; -webkit-user-select:none; }
 .node.cant .nbuy{ background:#33485c; color:#8aa0b4; cursor:not-allowed; }
 .node.locked .nbuy{ background:#2a3543; color:#6c7d8e; cursor:not-allowed; }
 .node.maxed .nbuy{ background:linear-gradient(145deg,#3fd19c,#1d8e6c); color:#06231a; cursor:default; }
+
+/* ===== Niveaux futurs (mystère) : placeholders flous + bouton verrouillé ===== */
+.node.mystery .spine{ background:none; border-left:3px dashed rgba(255,255,255,.10); width:0; }
+.node.mystery .badge{ filter:grayscale(1) brightness(.55); border-color:#3a4654; cursor:not-allowed; }
+.node.mystery .badge .bemoji{ opacity:.12; }
+.node.mystery .badge .block{ display:block; }
+.node.mystery .nname{ filter:blur(6px); opacity:.55; }
+.node.mystery .nlvl{ display:none; }
+.node.mystery .ndesc{ font-style:italic; opacity:.4; }
+.node.mystery .nbuy{ background:#2a3543; color:#6c7d8e; cursor:not-allowed; }
+.tier.mystery .tlabel{ filter:blur(5px); opacity:.5; }
+.tier.mystery .tdot{ background:#3a4654; box-shadow:none; }
 
 /* Prestige */
 .prestige-box{ text-align:center; }

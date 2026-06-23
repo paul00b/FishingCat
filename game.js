@@ -39,50 +39,66 @@ const SHOP = [
   { id:"reel",  emoji:"🎣", name:"Moulinet Huilé", base:12,  mult:1.45, max:18,
     desc:l=>`Pêche plus rapide. Délai : ${(fishInterval()/1000).toFixed(2)}s`,
   },
-  { id:"bait",  emoji:"🪱", name:"Appât Savoureux", base:18,  mult:1.55, max:250,
+  { id:"bait",  emoji:"🪱", name:"Appât Savoureux", base:18,  mult:1.6, max:45,
     desc:l=>`Valeur des poissons ×${fmt(baitMult())}`,
   },
   { id:"magnet",emoji:"🧲", name:"Aimant", base:200, mult:7, max:5,
     desc:l=>`Attrape ${grabCount()} poisson(s) à la fois`,
   },
+  { id:"rake",  emoji:"🧹", name:"Râteau", base:100, mult:1, max:1,
+    desc:l=>l===0?`Un râteau apparaît sur le ponton : attrape-le à la souris pour pousser les poissons vers le seau`
+                 :`Râteau posé sur le ponton ✓`,
+  },
 
   { phase:"Phase 2 — Semi-Automatique" },
-  { id:"hole",  emoji:"🕳️", name:"Agrandir le Trou", base:1500, mult:10, max:5,
-    desc:l=>l===0?`Débloque le Saumon et le Poisson-Globe`
-                 :`Trou +grand • valeur ×${holeMult().toFixed(1)} • niv ${l}`,
+  { id:"hole",  emoji:"🕳️", name:"Agrandir le Trou", base:2500, mult:10, max:5,
+    desc:l=>l===0?`Niv 1 : débloque le Saumon (rare) • Niv 2 : le Globe (rare)`
+                 :l===1?`Saumon débloqué (rare) • Niv 2 : débloque le Globe • valeur ×${holeMult().toFixed(1)}`
+                       :`Trou +grand • valeur ×${holeMult().toFixed(1)} • niv ${l}`,
   },
-  { id:"conveyor",emoji:"🛤️", name:"Tapis Roulant", base:3000, mult:1, max:1,
+  { id:"school", emoji:"🐟", name:"Banc de Saumons", base:6000, mult:2.1, max:6,
+    desc:l=>lvl("hole")<1?`Nécessite « Agrandir le Trou »`
+                         :`Apparition des Saumons : ${(saumonRate()*100).toFixed(1)}%`,
+  },
+  { id:"globebait", emoji:"🐡", name:"Leurre à Globes", base:40000, mult:2.4, max:6,
+    desc:l=>lvl("hole")<2?`Nécessite le Trou niveau 2`
+                         :`Apparition des Globes : ${(globeRate()*100).toFixed(1)}%`,
+  },
+  { id:"conveyor",emoji:"🛤️", name:"Tapis Roulant", base:4000, mult:1, max:1,
     desc:l=>l===0?`Pousse les poissons vers le trou tout seul`:`Tapis actif ✓`,
   },
-  { id:"net",   emoji:"🪣", name:"Épuisette (actif)", base:6000, mult:1, max:1,
+  { id:"net",   emoji:"🪣", name:"Épuisette (actif)", base:7500, mult:1, max:1,
     desc:l=>l===0?`Compétence : fait pleuvoir 10 poissons`:`Compétence débloquée ✓`,
   },
 
   { phase:"Phase 3 — L'Usine" },
-  { id:"auto",  emoji:"🤖", name:"Machine à Pêcher", base:30000, mult:1, max:1,
-    desc:l=>l===0?`Pêche automatiquement (gains hors-ligne !)`:`Pêche auto active ✓`,
+  { id:"auto",  emoji:"🤖", name:"Machine à Pêcher", base:60000, mult:1, max:1,
+    desc:l=>l===0?`Pêche seule, 1 poisson / 3 s (gains hors-ligne !)`:`Pêche auto active ✓`,
+  },
+  { id:"autospeed", emoji:"⚡", name:"Survolteur de Machine", base:45000, mult:1.65, max:12,
+    desc:l=>`Cadence de la machine. Délai : ${(autoInterval()/1000).toFixed(2)}s`,
   },
   { id:"boost", emoji:"⚙️", name:"Moteur de Tapis", base:9000, mult:2.2, max:10,
     desc:l=>`Force du tapis ×${convForceMult().toFixed(1)}`,
   },
-  { id:"frenzy",emoji:"🔥", name:"Mult. Frénétique", base:75000, mult:1, max:1,
+  { id:"frenzy",emoji:"🔥", name:"Mult. Frénétique", base:200000, mult:1, max:1,
     desc:l=>l===0?`+10 poissons/s dans le trou ⇒ gains ×2 (5s)`:`Frénésie active ✓`,
   },
 
   { phase:"Phase 4 — Le Vortex" },
-  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:600000, mult:1, max:1,
+  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:2500000, mult:1, max:1,
     desc:l=>l===0?`Le trou aspire les poissons alentour`:`Vortex actif ✓`,
   },
 ];
 
 const PERM = [
-  { id:"pmult", emoji:"✨", name:"Gains Éternels", base:1, mult:2.5, max:40,
+  { id:"pmult", emoji:"✨", name:"Gains Éternels", base:3, mult:2.8, max:40,
     desc:l=>`Tous les gains ×${fmt(permMult())} (permanent)`,
   },
-  { id:"pgold", emoji:"🐠", name:"Poissons Dorés", base:2, mult:2.4, max:6,
-    desc:l=>`${(goldenChance()*100).toFixed(0)}% de poissons dorés (×100 valeur)`,
+  { id:"pgold", emoji:"🐠", name:"Poissons Dorés", base:5, mult:3, max:10,
+    desc:l=>`+1% de poissons dorés / palier → ${(goldenChance()*100).toFixed(0)}% (×100 valeur)`,
   },
-  { id:"pstart",emoji:"💼", name:"Pécule de Départ", base:3, mult:2.2, max:12,
+  { id:"pstart",emoji:"💼", name:"Pécule de Départ", base:4, mult:2.6, max:12,
     desc:l=>`Commence chaque run avec ${fmt(startMoney())}$`,
   },
 ];
@@ -94,30 +110,34 @@ const plvl = id => S.perm[id] || 0;
 function cost(def, level){ return Math.floor(def.base * Math.pow(def.mult, level)); }
 
 function fishInterval(){ return Math.max(220, 3000 * Math.pow(0.85, lvl("reel"))); }
+// La machine a sa PROPRE cadence : 3 s de base, améliorée uniquement par son
+// survolteur (indépendante du Moulinet manuel).
+function autoInterval(){ return Math.max(700, 3000 * Math.pow(0.82, lvl("autospeed"))); }
 function baitMult(){ return Math.pow(1.5, lvl("bait")); }                 // ×1.5 par niveau
-function holeMult(){ return 1 + lvl("hole") * 0.5; }                      // bonus de valeur
+function holeMult(){ return 1 + lvl("hole") * 0.3; }                      // bonus de valeur
 function grabCount(){ return [1,2,3,5,8,12][Math.min(lvl("magnet"),5)]; }
 function convForceMult(){ return 1 + lvl("boost") * 0.8; }
-function permMult(){ return Math.pow(1.7, plvl("pmult")); }
-function goldenChance(){ return plvl("pgold") * 0.05; }
+function permMult(){ return Math.pow(1.45, plvl("pmult")); }
+function goldenChance(){ return plvl("pgold") * 0.01; }   // +1% par palier (max 10%)
 function startMoney(){ return plvl("pstart") * 500 * Math.pow(2.5, plvl("pstart")); }
 
+// Taux d'apparition des gros poissons : TRÈS rares de base, montés par leur palier dédié.
+function saumonRate(){ return lvl("hole")>=1 ? 0.03 + lvl("school")*0.035 : 0; }   // 3% → ~24%
+function globeRate(){  return lvl("hole")>=2 ? 0.008 + lvl("globebait")*0.018 : 0; } // 0.8% → ~12%
+
 function gainMult(){ return baitMult() * holeMult() * permMult() * (frenzyUntil > now() ? 2 : 1); }
-function prestigeGain(){ return Math.floor(Math.sqrt(S.earnedThisRun / 500000)); }
+function prestigeGain(){ return Math.floor(Math.sqrt(S.earnedThisRun / 4000000)); }
 
 // valeur moyenne d'un poisson pêché (pondérée espèces + dorés) — pour les gains hors-ligne
 function avgFishValue(){
-  const hl=lvl("hole");
-  let v;
-  if (hl>=2)      v = 0.18*SPECIES.globe.value + 0.24*SPECIES.saumon.value + 0.58*SPECIES.sardine.value;
-  else if (hl>=1) v = 0.42*SPECIES.saumon.value + 0.58*SPECIES.sardine.value;
-  else            v = SPECIES.sardine.value;
+  const g=globeRate(), s=saumonRate();
+  const v = g*SPECIES.globe.value + s*SPECIES.saumon.value + (1-g-s)*SPECIES.sardine.value;
   return v * (1 + 99*goldenChance());
 }
 // revenu passif estimé ($/s) — nécessite Machine + Tapis
 function passivePerSec(){
   if (!lvl("auto") || !lvl("conveyor")) return 0;
-  return (1000/fishInterval()) * avgFishValue() * baitMult() * holeMult() * permMult();
+  return (1000/autoInterval()) * avgFishValue() * baitMult() * holeMult() * permMult();
 }
 
 /* ---------------- Espèces de poissons ------------------------------------ */
@@ -127,12 +147,10 @@ const SPECIES = {
   globe:   { name:"Globe",    value:60, w:48, h:46, density:0.0006, color:"#ffd54a", belly:"#fff1b0" },
 };
 function rollSpecies(){
-  const hl = lvl("hole");
-  if (hl >= 1){
-    const r = Math.random();
-    if (hl >= 2 && r < 0.18) return "globe";
-    if (r < 0.42) return "saumon";
-  }
+  const r = Math.random();
+  const g = globeRate(), s = saumonRate();
+  if (r < g)     return "globe";
+  if (r < g + s) return "saumon";
   return "sardine";
 }
 
@@ -228,6 +246,35 @@ function makeHole(){
   return b;
 }
 Composite.add(world, hole);
+
+/* ---------------- Le Râteau (objet physique attrapable) ------------------ */
+// Outil débloqué en Phase 1. Il repose sur le ponton ; on l'attrape à la
+// souris pour POUSSER physiquement les poissons vers le seau.
+let rake = null;
+let rakeDrag = false;
+const RAKE_HEAD_W = 96, RAKE_HEAD_H = 16;
+function makeRake(){
+  const r = Bodies.rectangle(CAT_X+150, DOCK_Y-40, RAKE_HEAD_W, RAKE_HEAD_H, {
+    chamfer:{ radius:5 },
+    density:0.02, friction:0.5, frictionAir:0.05, restitution:0.05,
+    label:"rake",
+    collisionFilter:{ category:CAT_SOLID, mask:CAT_FISH|CAT_SOLID },
+  });
+  return r;
+}
+// Synchronise la présence du râteau avec le niveau de l'amélioration.
+function ensureRake(){
+  if (lvl("rake") && !rake){ rake = makeRake(); Composite.add(world, rake); }
+  else if (!lvl("rake") && rake){ Composite.remove(world, rake); rake=null; rakeDrag=false; }
+  const btn=document.getElementById("rake-reset"); if (btn) btn.hidden = !lvl("rake");
+}
+// Détruit l'éventuel râteau actuel et en repose un neuf sur le ponton.
+function respawnRake(){
+  if (!lvl("rake")) return;
+  if (rake){ Composite.remove(world, rake); rake=null; }
+  rakeDrag=false;
+  rake = makeRake(); Composite.add(world, rake);
+}
 
 const fishes = [];   // bodies actifs
 const MAX_FISH = 140;
@@ -389,6 +436,13 @@ function onDown(e){
   pointer.x=p.x; pointer.y=p.y; pointer.down=true;
   pointerHist = [{x:p.x,y:p.y,t:now()}];
 
+  // 0) attraper le râteau près du curseur ? (prioritaire : c'est l'outil)
+  //    zone de prise généreuse (tête + manche) pour rester agréable à saisir
+  if (rake && Vector.magnitudeSquared(Vector.sub(rake.position, p)) < 64*64){
+    rakeDrag = true;
+    hideHint();
+    return;
+  }
   // 1) attraper un poisson sous le curseur ?
   const hit = Query.point(fishes, p)[0];
   if (hit){
@@ -415,6 +469,7 @@ function onMove(e){
 function onUp(e){
   pointer.down=false;
   if (drag.active) endDrag();
+  rakeDrag=false;          // le râteau redevient un objet physique posé
   isFishing=false;
 }
 
@@ -489,13 +544,31 @@ function loop(){
     fishingProgress = Math.max(0, fishingProgress - dt*2);
   }
 
-  // --- Pêche automatique (Machine) ---
+  // --- Pêche automatique (Machine) — cadence propre, indépendante du Moulinet ---
   if (lvl("auto")){
     autoTimer += dt;
-    if (autoTimer >= fishInterval()){
+    if (autoTimer >= autoInterval()){
       autoTimer = 0;
       doFish();
     }
+  }
+
+  // --- Râteau : suit le pointeur et pousse les poissons par collision ---
+  if (rakeDrag && rake){
+    // on borne la cible AU-DESSUS du ponton : impossible de l'enfoncer sous les planches
+    const target = {
+      x: clamp(pointer.x, 60, W-60),
+      y: clamp(pointer.y, DOCK_Y-240, DOCK_Y+14),
+    };
+    const np = Vector.add(rake.position, Vector.mult(Vector.sub(target, rake.position), 0.45));
+    Body.setVelocity(rake, Vector.sub(np, rake.position));   // vitesse = pour transmettre la poussée
+    Body.setPosition(rake, np);
+    Body.setAngle(rake, 0);
+    Body.setAngularVelocity(rake, 0);
+  }
+  // filet de sécurité : si le râteau s'est perdu (hors écran), on le fait réapparaître
+  if (rake && !rakeDrag && (rake.position.y > H+40 || rake.position.x < -60 || rake.position.x > W+60)){
+    respawnRake();
   }
 
   // --- Drag : maintenir les poissons sur le pointeur ---
@@ -651,6 +724,7 @@ function render(){
   drawLantern();
   drawCat();
   fishes.forEach(drawFish);
+  drawRake();
   drawParticles();
   drawSplashes();
   drawFrenzyVignette();
@@ -809,6 +883,34 @@ function drawCat(){
   if (SPRITES[pose]) drawSprite(pose, CAT_X, DOCK_Y+8+bob, 172, 0.5, 1);
   else { ctx.fillStyle="#888"; ctx.beginPath(); ctx.arc(CAT_X,DOCK_Y-40,30,0,7); ctx.fill(); }
 }
+function drawRake(){
+  if (!rake) return;
+  const held = rakeDrag;
+  ctx.save();
+  ctx.translate(rake.position.x, rake.position.y);
+  ctx.rotate(rake.angle);
+  // halo léger quand on le tient
+  if (held){
+    const gl=ctx.createRadialGradient(0,0,0,0,0,80);
+    gl.addColorStop(0,"rgba(255,236,180,.30)"); gl.addColorStop(1,"rgba(255,236,180,0)");
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(0,0,80,0,7); ctx.fill();
+  }
+  // manche en bois (part de la tête vers le haut-gauche)
+  ctx.lineCap="round";
+  ctx.strokeStyle="#6b4423"; ctx.lineWidth=10;
+  ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(-10,-78); ctx.stroke();
+  ctx.strokeStyle="#a9743b"; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(-10,-78); ctx.stroke();
+  // tête (barre)
+  ctx.fillStyle="#8a5a2b"; ctx.strokeStyle="#5e3c1a"; ctx.lineWidth=2;
+  roundRect(-RAKE_HEAD_W/2,-RAKE_HEAD_H/2,RAKE_HEAD_W,RAKE_HEAD_H,5); ctx.fill(); ctx.stroke();
+  // dents
+  ctx.fillStyle="#6b4423";
+  for (let x=-RAKE_HEAD_W/2+8; x<=RAKE_HEAD_W/2-8; x+=14){
+    ctx.fillRect(x-2, RAKE_HEAD_H/2-2, 5, 16);
+  }
+  ctx.restore();
+}
 function drawFish(f){
   const sp = SPECIES[f.species];
   // poisson doré = sprite dédié ; sinon sprite de l'espèce
@@ -915,6 +1017,7 @@ netBtn.addEventListener("click", () => {
   }, 80);
 });
 
+
 /* ========================================================================= *
    INTERFACE — Boutique / Prestige / HUD
  * ========================================================================= */
@@ -965,9 +1068,12 @@ function revealLimit(){
 function unlocked(def){
   // dépendances de déblocage
   if (def.id==="hole")     return lvl("bait")>=2 || lvl("magnet")>=1;
+  if (def.id==="school")   return lvl("hole")>=1;
+  if (def.id==="globebait")return lvl("hole")>=2;
   if (def.id==="conveyor") return lvl("hole")>=1;
   if (def.id==="net")      return lvl("hole")>=1;
   if (def.id==="auto")     return lvl("conveyor")>=1;
+  if (def.id==="autospeed")return lvl("auto")>=1;
   if (def.id==="boost")    return lvl("conveyor")>=1;
   if (def.id==="frenzy")   return lvl("auto")>=1;
   if (def.id==="vortex")   return lvl("frenzy")>=1;
@@ -997,6 +1103,7 @@ function buyPerm(def){
 function onUpgrade(id){
   if (id==="hole"){ Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole); }
   if (id==="net" && lvl("net")) netBtn.hidden=false;
+  if (id==="rake") ensureRake();
   toast("Amélioration achetée !");
 }
 
@@ -1073,7 +1180,7 @@ $("prestige-btn").addEventListener("click", ()=>{
   S.up={}; S.money=startMoney(); S.earnedThisRun=0;
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; frenzyUntil=0;
+  netBtn.hidden=true; ensureRake(); frenzyUntil=0;
   toast(`+${g} 🪙 Écailles d'Or !`);
   uiDirty=true;
 });
@@ -1112,7 +1219,7 @@ $("reset-btn").addEventListener("click", ()=>{
   localStorage.removeItem(KEY); S=structuredClone(DEFAULT_STATE);
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; uiDirty=true; refreshShop(); toast("Réinitialisé");
+  netBtn.hidden=true; ensureRake(); uiDirty=true; refreshShop(); toast("Réinitialisé");
 });
 
 /* ---------------- Toast / hint ------------------------------------------- */
@@ -1136,6 +1243,7 @@ $("mute-btn").addEventListener("click", e=>{
   const m=Sound.toggle(); e.currentTarget.textContent=m?"🔇":"🔊";
   e.currentTarget.classList.toggle("muted",m);
 });
+$("rake-reset").addEventListener("click", ()=>{ respawnRake(); toast("Râteau replacé 🧹"); });
 
 /* ---------------- Utils --------------------------------------------------- */
 function now(){ return performance.now(); }
@@ -1153,6 +1261,7 @@ function fmt(n){
  * ========================================================================= */
 load();
 if (S.up.net) netBtn.hidden=false;
+ensureRake();
 if (S.money===0 && S.earnedThisRun===0) S.money=startMoney();
 applyOffline();          // gains accumulés pendant l'absence
 buildShop();
