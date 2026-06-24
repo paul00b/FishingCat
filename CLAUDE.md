@@ -24,24 +24,47 @@ automate the whole loop; a prestige system ("Sacrifice") resets you for permanen
 ## Core mechanics (all in `game.js`)
 - **Fishing loop:** hold in water → gauge fills (`fishInterval`) → fish spawns behind the cat →
   drag it (mouse velocity = throw force) into the barrel sensor → `scoreFish()` awards money.
-- **Species** (`SPECIES`): sardine (1), saumon (12), globe (60); gold variants ×100.
-  Big fish are **rare by design**: the hole upgrade only *unlocks* them (saumon at hole≥1, globe at
-  hole≥2) at a tiny base rate. Their spawn % is raised by dedicated paliers — `school` (Banc de Saumons)
-  and `globebait` (Leurre à Globes). Rates live in `saumonRate()`/`globeRate()`; `rollSpecies()` and
-  `avgFishValue()` both read them so income and offline-earnings stay consistent.
+- **Species** (`SPECIES`): sardine (1), saumon (12), globe (60); gold variants ×100. Plus **5 "difficulty"
+  species**, each adding a distinct friction (not just value) — every one keyed to a flag read by the
+  physics/scoring code:
+  - 🪼 **méduse** (`floaty`+`sting`, 30): buoyant (rises in `beforeUpdate`) and **stings if held >`STING_MS`**
+    → `stungBy()` zeroes combo & ejects the drag.
+  - 🦀 **crabe** (`flees`, 40): crawls left away from the hole in `beforeUpdate`, fighting the conveyor/rake.
+  - 🐍 **anguille** (`slippery`, 80): random chance each frame to break the drag → `slipsAway()`.
+  - 🥾 **botte** (`junk`, 0): worthless; scoring it in `scoreFish()` pays 0 and **resets combo** (early return).
+  - 👑 **roi** (`fleeting`, 2500): legendary; `f.fleeUntil = now()+ROI_TTL`, flees (removed) in the main loop if not caught.
+  - Spawn is **rare by design** & gated by the hole: rate fns `saumonRate/globeRate/meduseRate/crabeRate/
+    botteRate/anguilleRate/coffreRate/roiRate`. `rollSpecies()` subtracts each rate in turn; `avgFishValue()`
+    mirrors them but weights by **`autoMul`** (fraction automation/offline actually banks — crabe 0.4, méduse 0.7,
+    roi 0.15) so passive income stays honest while manual skill earns full value.
+  - Dedicated spawn-% paliers (deliberate money sinks, like `school`/`globebait`): `treasure` (Carte au Trésor →
+    coffre, hole≥2) and `royal` (Leurre Royal → roi, hole≥3).
+- 🧰 **coffre** (`heavy`, 450): jackpot with ~10× density — nearly unthrowable by hand; needs rake/conveyor/vortex.
 - **Juice:** combos, screen-shake, frenzy mode (×2 when >10 fish/sec), coin bursts, splashes,
   8-bit WebAudio synth (`Sound`, no sound files).
-- **Progression — 4 phases** (`SHOP` array, gated skill-tree; future phases shown as blurred "mystery"):
+- **Progression — 5 phases** (`SHOP` array, gated skill-tree; future phases shown as blurred "mystery").
+  **Prestige is mandatory to finish:** late nodes are gated on `S.prestiges` in `unlocked()` — you *must*
+  sacrifice several times to reach the end (locked nodes show a `def.req()` string explaining what's needed).
   1. *Le Manuel* — reel (faster), bait (value), magnet (grab N at once), **rake** (~$100).
-  2. *Semi-Automatique* — bigger hole, **school**/**globebait** (raise saumon/globe spawn %), conveyor belt, net skill (fish rain).
+  2. *Semi-Automatique* — bigger hole, **school**/**globebait**/**treasure** (raise saumon/globe/coffre spawn %), conveyor belt, net skill (fish rain).
   3. *L'Usine* — auto-fisher, **autospeed** (machine cadence), conveyor motor, frenzy multiplier.
-  4. *Le Vortex* — sucks nearby fish into the hole.
+  4. *La Volière* — **wall** (Mur Rebond: physical bouncy wall behind the barrel, `ensureWall`/`drawWall`, redirects overthrows), **gull** (Mouette: a flying helper, **requires prestige≥1**), **gullspeed**/**gullcarry** (its powers), **royal** (roi spawn %, hole≥3).
+  5. *Le Vortex* — sucks nearby fish into the hole; **requires prestige≥3 + the gull**, and costs ~60M so permMult from several runs is needed. The true endgame.
+- **The Mouette (seagull)** is a runtime state machine (`gull` object, not saved): `away`→`incoming`→`carrying`→
+  `leaving`. `updateGull()` (called each loop) flies it in, grabs the top `gullCarry()` catchable dock fish
+  (skips junk), carries them over the barrel, and `gullDeliver()` scores them. `gullInterval()`/`gullFlySpeed()`
+  scale with `gullspeed`. Drawn procedurally in `drawGull()` (no sprite yet).
+- **Side systems (in the shop drawer tabs):** **Quêtes** (`QUESTS`, tiered objective chains → $/🪙, green
+  `#quest-dot` when claimable), **Bestiaire** (`BESTIARY` — one card/species, grayscale until `discovered()`;
+  catch-count tiers `BEST_TIERS` grant a permanent `bestiaryMult()` income bonus folded into `gainMult()`),
+  and **Sacrifice** (`PERM`, 7 permanent upgrades).
 - **The rake is a physical object, not a skill button.** Buying it (`ensureRake`/`makeRake`) spawns
   a draggable Matter body (`label:"rake"`, category `CAT_SOLID`) that rests on the dock. Grabbing it
   (proximity check in `onDown`) sets `rakeDrag`; the loop moves it to the pointer with velocity so it
   physically shoves fish toward the barrel. Its dragged position is **clamped above the dock** so it
   can't be pushed under the planks; an off-screen safety + a `#rake-reset` button (`respawnRake()`)
-  recover it if it ever gets lost. Drawn procedurally in `drawRake()`. The net is still a skill button.
+  recover it if it ever gets lost. Now drawn from the `rake` **sprite** in `drawRake()` (was procedural); its
+  body is a **tall vertical bar** (`RAKE_HEAD_W`×`RAKE_HEAD_H` = 30×78) so it shoves a whole stack of fish. The net is still a skill button.
 - **Bigger fish unlock progressively** with the hole: level 1 → saumon, level 2 → globe (see
   `rollSpecies()` and `avgFishValue()`; the shop desc spells this out).
 - **Auto machine timing is independent of the manual reel.** `autoInterval()` starts at 3s and is

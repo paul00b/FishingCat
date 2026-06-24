@@ -26,6 +26,11 @@ const DEFAULT_STATE = {
   gold: 0,
   earnedThisRun: 0,
   totalCaught: 0,
+  totalEarned: 0,        // argent gagné sur toute la vie (≠ run)
+  bestCombo: 0,          // meilleur combo atteint
+  prestiges: 0,          // nombre de sacrifices
+  caught: {},            // nb de prises par espèce (bestiaire)
+  questTier: {},         // palier courant par chaîne de quête
   up: {},          // niveaux des améliorations
   perm: {},        // améliorations permanentes (écailles)
   seenHint: false,
@@ -64,6 +69,10 @@ const SHOP = [
     desc:l=>lvl("hole")<2?`Nécessite le Trou niveau 2`
                          :`Apparition des Globes : ${(globeRate()*100).toFixed(1)}%`,
   },
+  { id:"treasure", emoji:"🗺️", name:"Carte au Trésor", base:120000, mult:2.5, max:6,
+    desc:l=>lvl("hole")<2?`Nécessite le Trou niveau 2`
+                         :`Apparition des Coffres (jackpot lourd) : ${(coffreRate()*100).toFixed(1)}%`,
+  },
   { id:"conveyor",emoji:"🛤️", name:"Tapis Roulant", base:4000, mult:1, max:1,
     desc:l=>l===0?`Pousse les poissons vers le trou tout seul`:`Tapis actif ✓`,
   },
@@ -85,9 +94,34 @@ const SHOP = [
     desc:l=>l===0?`+10 poissons/s dans le trou ⇒ gains ×2 (5s)`:`Frénésie active ✓`,
   },
 
-  { phase:"Phase 4 — Le Vortex" },
-  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:2500000, mult:1, max:1,
-    desc:l=>l===0?`Le trou aspire les poissons alentour`:`Vortex actif ✓`,
+  { phase:"Phase 4 — La Volière" },
+  { id:"wall",  emoji:"🧱", name:"Mur Rebond", base:300000, mult:2.2, max:5,
+    req:()=>`Nécessite la Frénésie`,
+    desc:l=>l===0?`Dresse un mur derrière le seau : les poissons trop lancés rebondissent vers le trou`
+                 :`Mur niv ${l} • rebond ×${wallBounce().toFixed(2)} • +haut`,
+  },
+  { id:"gull",  emoji:"🐦", name:"Mouette Apprivoisée", base:900000, mult:1, max:1,
+    req:()=>`Nécessite 1 sacrifice 🌀`,
+    desc:l=>l===0?`Engage une mouette : elle plonge régulièrement déposer un poisson dans le seau (débloque ses pouvoirs)`
+                 :`Mouette active ✓ — porte ${gullCarry()} poisson(s), toutes les ${(gullInterval()/1000).toFixed(1)}s`,
+  },
+  { id:"gullspeed", emoji:"🪶", name:"Vol Rapide", base:500000, mult:1.7, max:8,
+    req:()=>`Nécessite la Mouette`,
+    desc:l=>`Mouette plus rapide & fréquente — passage toutes les ${(gullInterval()/1000).toFixed(1)}s`,
+  },
+  { id:"gullcarry", emoji:"🎒", name:"Bec Vorace", base:1200000, mult:2.2, max:5,
+    req:()=>`Nécessite la Mouette`,
+    desc:l=>`La mouette emporte ${gullCarry()} poisson(s) par voyage`,
+  },
+  { id:"royal", emoji:"👑", name:"Leurre Royal", base:1500000, mult:2.7, max:6,
+    req:()=>`Nécessite le Trou niveau 3`,
+    desc:l=>`Apparition du Poisson-Roi (légendaire fugace) : ${(roiRate()*100).toFixed(2)}%`,
+  },
+
+  { phase:"Phase 5 — Le Vortex" },
+  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:60000000, mult:1, max:1,
+    req:()=>`Nécessite 3 sacrifices 🌀 + la Mouette`,
+    desc:l=>l===0?`Le trou aspire tous les poissons alentour. L'aboutissement — il faudra plusieurs sacrifices pour se l'offrir.`:`Vortex actif ✓`,
   },
 ];
 
@@ -101,7 +135,68 @@ const PERM = [
   { id:"pstart",emoji:"💼", name:"Pécule de Départ", base:4, mult:2.6, max:12,
     desc:l=>`Commence chaque run avec ${fmt(startMoney())}$`,
   },
+  { id:"pfrenzy", emoji:"🔥", name:"Frénésie Prolongée", base:8, mult:2.4, max:8,
+    desc:l=>`Frénésie : ${(frenzyDur()/1000).toFixed(0)}s, seuil ${frenzyThreshold()} poissons/s`,
+  },
+  { id:"pcombo", emoji:"⚡", name:"Combo Tenace", base:8, mult:2.4, max:8,
+    desc:l=>`Fenêtre de combo ${(comboWindow()/1000).toFixed(1)}s • bonus max ×${comboMaxMult().toFixed(2)}`,
+  },
+  { id:"pmagnet", emoji:"🧲", name:"Tonneau Aimanté", base:12, mult:2.6, max:10,
+    desc:l=>l===0?`Le tonneau attire les poissons proches`:`Attraction du tonneau niv ${l}`,
+  },
+  { id:"pmachine", emoji:"🤖", name:"Flotte de Machines", base:20, mult:3, max:8,
+    desc:l=>`${autoMachines()} machine(s) à pêcher en parallèle`,
+  },
 ];
+
+/* ---------------- Quêtes / Objectifs ------------------------------------- */
+// Chaînes de paliers : on affiche le palier courant ; le réclamer fait avancer.
+const QUESTS = [
+  { id:"catch", emoji:"🎣", name:"Pêcheur émérite", unit:"poissons", metric:()=>S.totalCaught,
+    tiers:[ {goal:25,money:200},{goal:150,money:2500},{goal:750,money:30000},
+            {goal:3000,gold:1},{goal:12000,gold:3},{goal:50000,gold:8},{goal:200000,gold:20} ] },
+  { id:"earn", emoji:"💰", name:"Magnat du poisson", unit:"$ gagnés", big:true, metric:()=>S.totalEarned,
+    tiers:[ {goal:1000,money:600},{goal:50000,money:9000},{goal:1e6,gold:2},
+            {goal:5e7,gold:5},{goal:1e9,gold:12},{goal:1e11,gold:30},{goal:1e13,gold:75} ] },
+  { id:"combo", emoji:"🔥", name:"Roi du combo", unit:"combo", metric:()=>S.bestCombo,
+    tiers:[ {goal:5,money:400},{goal:15,money:6000},{goal:30,gold:1},{goal:50,gold:3},{goal:80,gold:8} ] },
+  { id:"prestige", emoji:"🌀", name:"Maître du sacrifice", unit:"sacrifices", metric:()=>S.prestiges,
+    tiers:[ {goal:1,gold:2},{goal:3,gold:5},{goal:7,gold:12},{goal:15,gold:30},{goal:30,gold:75} ] },
+];
+/* ---------------- Bestiaire ---------------------------------------------- */
+// Collectionner les espèces récompense par un bonus de gains PERMANENT.
+// Chaque palier de capture franchi (par espèce) ajoute +2% aux gains.
+const BEST_TIERS = [10, 100, 1000, 10000];
+const BEST_BONUS = 0.02;
+const BESTIARY = [
+  { key:"sardine", emoji:"🐟", blurb:"L'ordinaire du ponton. Abondante et docile." },
+  { key:"saumon",  emoji:"🐠", blurb:"Plus gros, plus rare. Apparaît dès le trou niv 1." },
+  { key:"globe",   emoji:"🐡", blurb:"Léger et rebondissant, belle valeur. Trou niv 2." },
+  { key:"meduse",  emoji:"🪼", blurb:"Urticante ! Elle flotte et s'échappe par le haut. Tenue trop longtemps, elle pique et casse ton combo — lance-la vite." },
+  { key:"crabe",   emoji:"🦀", blurb:"Évasif : il rampe sur le ponton en fuyant le trou. Attrape-le et lance-le vite avant qu'il ne replonge." },
+  { key:"botte",   emoji:"🥾", blurb:"Un déchet sans valeur qui encombre le ponton. La jeter au trou ne rapporte rien et casse ton combo : écarte-la." },
+  { key:"anguille",emoji:"🐍", blurb:"Glissante : elle se tortille et file hors de ta main. Difficile à garder et à viser." },
+  { key:"coffre",  emoji:"🧰", blurb:"Jackpot. Si lourd qu'on ne peut pas le lancer à la main : pousse-le avec le râteau, le tapis ou le vortex." },
+  { key:"roi",     emoji:"👑", blurb:"Légendaire ! Une fortune… mais il s'enfuit en quelques secondes. Une chasse éclair réservée à l'endgame (trou niv 3)." },
+];
+const discovered = key => (S.caught[key]||0) > 0;
+function bestTiers(key){ const c=S.caught[key]||0; return BEST_TIERS.filter(g=>c>=g).length; }
+function bestiaryTotalTiers(){ return BESTIARY.reduce((s,b)=>s+bestTiers(b.key),0); }
+function bestiaryMult(){ return 1 + bestiaryTotalTiers()*BEST_BONUS; }
+
+const qIdx = q => S.questTier[q.id] || 0;
+const qCurrent = q => qIdx(q) < q.tiers.length ? q.tiers[qIdx(q)] : null;
+function qClaimable(q){ const t=qCurrent(q); return t && q.metric() >= t.goal; }
+function questsClaimable(){ return QUESTS.filter(qClaimable).length; }
+function claimQuest(q){
+  const t=qCurrent(q); if(!t || q.metric()<t.goal) return;
+  if (t.money) S.money += t.money;
+  if (t.gold)  S.gold  += t.gold;
+  S.questTier[q.id] = qIdx(q)+1;
+  Sound.gold();
+  toast(`🎯 Objectif accompli ! +${t.gold?t.gold+" 🪙":fmt(t.money)+" $"}`);
+  uiDirty=true;
+}
 
 /* ---------------- Helpers de stats --------------------------------------- */
 const lvl  = id => S.up[id]   || 0;
@@ -120,37 +215,87 @@ function convForceMult(){ return 1 + lvl("boost") * 0.8; }
 function permMult(){ return Math.pow(1.45, plvl("pmult")); }
 function goldenChance(){ return plvl("pgold") * 0.01; }   // +1% par palier (max 10%)
 function startMoney(){ return plvl("pstart") * 500 * Math.pow(2.5, plvl("pstart")); }
+// prestige étendu
+function frenzyDur(){ return 5000 + plvl("pfrenzy")*1500; }
+function frenzyThreshold(){ return Math.max(5, 10 - plvl("pfrenzy")); }
+function comboWindow(){ return COMBO_WINDOW + plvl("pcombo")*350; }
+function comboMaxMult(){ return 1 + (40 + plvl("pcombo")*12)*0.025; }
+function autoMachines(){ return 1 + plvl("pmachine"); }
+
+// --- Phase 4 « La Volière » : mur rebond + mouette assistante ---
+function wallHeight(){ return 80 + lvl("wall")*28; }                 // hauteur du mur (px monde)
+function wallBounce(){ return Math.min(1, 0.7 + lvl("wall")*0.07); }  // restitution (rebond, ≤1)
+function gullCarry(){ return 1 + lvl("gullcarry"); }                 // poissons par voyage
+function gullInterval(){ return Math.max(2600, 11000 - lvl("gullspeed")*1200); }
+function gullFlySpeed(){ return 5 + lvl("gullspeed")*0.9; }          // vitesse de vol
 
 // Taux d'apparition des gros poissons : TRÈS rares de base, montés par leur palier dédié.
 function saumonRate(){ return lvl("hole")>=1 ? 0.03 + lvl("school")*0.035 : 0; }   // 3% → ~24%
 function globeRate(){  return lvl("hole")>=2 ? 0.008 + lvl("globebait")*0.018 : 0; } // 0.8% → ~12%
+// Espèces "difficiles" : chacune apporte une friction différente, pas juste de la valeur.
+function meduseRate(){   return lvl("hole")>=1 ? 0.05  : 0; }   // urticante (nuisance fréquente)
+function crabeRate(){    return lvl("hole")>=1 ? 0.04  : 0; }   // fuit le trou (évasif)
+function botteRate(){    return lvl("hole")>=1 ? 0.04  : 0; }   // déchet sans valeur (encombre)
+function anguilleRate(){ return lvl("hole")>=2 ? 0.03  : 0; }   // glissante (drag qui lâche)
+function coffreRate(){   return lvl("hole")>=2 ? 0.005 + lvl("treasure")*0.006 : 0; }  // 0.5% → ~4.1%
+function roiRate(){      return lvl("hole")>=3 ? 0.002 + lvl("royal")*0.004    : 0; }  // 0.2% → ~2.6%
 
-function gainMult(){ return baitMult() * holeMult() * permMult() * (frenzyUntil > now() ? 2 : 1); }
+function gainMult(){ return baitMult() * holeMult() * permMult() * bestiaryMult() * (frenzyUntil > now() ? 2 : 1); }
 function prestigeGain(){ return Math.floor(Math.sqrt(S.earnedThisRun / 4000000)); }
 
 // valeur moyenne d'un poisson pêché (pondérée espèces + dorés) — pour les gains hors-ligne
 function avgFishValue(){
-  const g=globeRate(), s=saumonRate();
-  const v = g*SPECIES.globe.value + s*SPECIES.saumon.value + (1-g-s)*SPECIES.sardine.value;
+  const rates = { roi:roiRate(), coffre:coffreRate(), globe:globeRate(), anguille:anguilleRate(),
+                  botte:botteRate(), crabe:crabeRate(), meduse:meduseRate(), saumon:saumonRate() };
+  // autoMul : fraction réellement encaissée par l'automatisation/hors-ligne.
+  // Les espèces qui fuient (crabe), flottent (méduse) ou s'enfuient (roi) sont sous-pondérées
+  // pour que les gains passifs restent honnêtes (le skill manuel en encaisse, lui, la pleine valeur).
+  let v = 0, used = 0;
+  for (const k in rates){ const sp=SPECIES[k]; v += rates[k]*sp.value*(sp.autoMul??1); used += rates[k]; }
+  v += Math.max(0, 1-used) * SPECIES.sardine.value;
   return v * (1 + 99*goldenChance());
 }
 // revenu passif estimé ($/s) — nécessite Machine + Tapis
 function passivePerSec(){
   if (!lvl("auto") || !lvl("conveyor")) return 0;
-  return (1000/autoInterval()) * avgFishValue() * baitMult() * holeMult() * permMult();
+  return (1000/autoInterval()) * autoMachines() * avgFishValue() * baitMult() * holeMult() * permMult() * bestiaryMult();
 }
 
 /* ---------------- Espèces de poissons ------------------------------------ */
 const SPECIES = {
-  sardine: { name:"Sardine",  value:1,  w:46, h:22, density:0.0012, color:"#b8c6d1", belly:"#eef3f7" },
-  saumon:  { name:"Saumon",   value:12, w:74, h:34, density:0.0020, color:"#ef7d5a", belly:"#ffd9c4" },
-  globe:   { name:"Globe",    value:60, w:48, h:46, density:0.0006, color:"#ffd54a", belly:"#fff1b0" },
+  sardine: { name:"Sardine",  value:1,   w:46, h:22, density:0.0012, color:"#b8c6d1", belly:"#eef3f7" },
+  saumon:  { name:"Saumon",   value:12,  w:74, h:34, density:0.0020, color:"#ef7d5a", belly:"#ffd9c4" },
+  globe:   { name:"Globe",    value:60,  w:48, h:46, density:0.0006, color:"#ffd54a", belly:"#fff1b0" },
+  // Méduse : urticante. Flotte vers le haut et tente de s'échapper ; si on la
+  // tient trop longtemps en main, elle pique → combo remis à zéro. À lancer vite.
+  meduse:  { name:"Méduse",   value:30,  w:52, h:62, density:0.0006, color:"#bcd8f0", belly:"#ffd8e6", floaty:true, sting:true, autoMul:0.7 },
+  // Coffre : jackpot LOURD. Quasi impossible à lancer à la main — il faut le
+  // pousser (râteau / tapis / vortex). Très rare.
+  coffre:  { name:"Coffre",   value:450, w:72, h:58, density:0.0140, color:"#caa15a", belly:"#ffe0a0", heavy:true },
+  // Crabe : ÉVASIF. Marche latéralement et fuit le trou ; il faut l'attraper vite.
+  crabe:   { name:"Crabe",    value:40,  w:58, h:44, density:0.0016, color:"#e8612e", belly:"#ffb47a", flees:true, autoMul:0.4 },
+  // Anguille : GLISSANTE. Se tortille et glisse hors de la main (le drag se brise).
+  anguille:{ name:"Anguille", value:80,  w:84, h:38, density:0.0014, color:"#2e6e66", belly:"#e8d49a", slippery:true },
+  // Botte : DÉCHET. Valeur nulle, encombre le ponton et casse le rythme si jetée au trou.
+  botte:   { name:"Vieille Botte", value:0, w:56, h:50, density:0.0022, color:"#7d7a4a", belly:"#9aa05a", junk:true },
+  // Poisson-Roi : LÉGENDAIRE. Colossal mais disparaît en quelques secondes. Chasse éclair.
+  roi:     { name:"Poisson-Roi", value:2500, w:96, h:48, density:0.0010, color:"#3aa0a8", belly:"#ffc24a", fleeting:true, autoMul:0.15 },
 };
 function rollSpecies(){
-  const r = Math.random();
-  const g = globeRate(), s = saumonRate();
-  if (r < g)     return "globe";
-  if (r < g + s) return "saumon";
+  let r = Math.random();
+  // Espèces spéciales, des plus rares aux plus communes (chacune retranchée du tirage).
+  for (const [key, rate] of [
+        ["roi",      roiRate()],
+        ["coffre",   coffreRate()],
+        ["globe",    globeRate()],
+        ["anguille", anguilleRate()],
+        ["botte",    botteRate()],
+        ["crabe",    crabeRate()],
+        ["meduse",   meduseRate()],
+        ["saumon",   saumonRate()] ]){
+    if (r < rate) return key;
+    r -= rate;
+  }
   return "sardine";
 }
 
@@ -187,6 +332,7 @@ const Sound = (function(){
     gold(){ seq([660,880,1320,1760],"triangle",0.5,55); },
     splash(){ noise(0.16,0.3); },
     buy(){ tone(540,0.07,"square",0.4); setTimeout(()=>tone(760,0.09,"square",0.4),70); },
+    zap(){ tone(300,0.18,"sawtooth",0.5,70); noise(0.12,0.35); },
     frenzy(){ seq([523,659,784,1046,1318],"square",0.5,70); },
     prestige(){ seq([392,523,659,784,1046,1318],"triangle",0.55,110); },
     resume(){ ensure(); },
@@ -198,7 +344,9 @@ const Sound = (function(){
 /* ---------------- État feedback (combo / screen-shake) ------------------- */
 let combo=0, lastScoreT=0;
 const COMBO_WINDOW=1500;
-const comboMult = () => 1 + Math.min(combo,40)*0.025;   // jusqu'à +100% en plein combo
+const STING_MS=1600;          // délai avant qu'une méduse tenue ne pique
+const ROI_TTL=6000;           // durée de vie d'un poisson-roi avant qu'il ne s'enfuie
+const comboMult = () => 1 + Math.min(combo, 40 + plvl("pcombo")*12)*0.025;
 let shake=0;
 
 /* ========================================================================= *
@@ -252,10 +400,11 @@ Composite.add(world, hole);
 // souris pour POUSSER physiquement les poissons vers le seau.
 let rake = null;
 let rakeDrag = false;
-const RAKE_HEAD_W = 96, RAKE_HEAD_H = 16;
+// Tête plus HAUTE qu'avant : une vraie lame verticale qui pousse une pile de poissons.
+const RAKE_HEAD_W = 30, RAKE_HEAD_H = 78;
 function makeRake(){
-  const r = Bodies.rectangle(CAT_X+150, DOCK_Y-40, RAKE_HEAD_W, RAKE_HEAD_H, {
-    chamfer:{ radius:5 },
+  const r = Bodies.rectangle(CAT_X+150, DOCK_Y-RAKE_HEAD_H/2, RAKE_HEAD_W, RAKE_HEAD_H, {
+    chamfer:{ radius:6 },
     density:0.02, friction:0.5, frictionAir:0.05, restitution:0.05,
     label:"rake",
     collisionFilter:{ category:CAT_SOLID, mask:CAT_FISH|CAT_SOLID },
@@ -274,6 +423,79 @@ function respawnRake(){
   if (rake){ Composite.remove(world, rake); rake=null; }
   rakeDrag=false;
   rake = makeRake(); Composite.add(world, rake);
+}
+
+/* ---------------- Mur Rebond (Phase 4) ----------------------------------- */
+// Mur statique derrière le seau : les poissons trop lancés rebondissent vers le trou.
+let wall = null;
+const WALL_X = HOLE_X + 98;
+function ensureWall(){
+  if (wall){ Composite.remove(world, wall); wall=null; }
+  if (lvl("wall")){
+    const h = wallHeight();
+    wall = staticBox(WALL_X, DOCK_Y + 14 - h/2, 20, h, { restitution:wallBounce(), friction:0.15 });
+    Composite.add(world, wall);
+  }
+}
+
+/* ---------------- La Mouette (Phase 4, assistante) ----------------------- */
+// Machine à états : attend hors-champ → fonce sur un poisson du ponton → l'emporte
+// au-dessus du seau → le dépose dedans → repart. Pouvoirs : cadence & contenance.
+let gull = { state:"away", t:0, x:-120, y:120, vx:0, vy:0, carried:[], wing:0 };
+function gullCatchable(){
+  return fishes.filter(f => !f.dragging && !f.scored && !f.carried
+    && !SPECIES[f.species].junk && f.position.y > DOCK_Y-110 && f.position.x > 80 && f.position.x < WALL_X)
+    .sort((a,b)=> b.baseValue - a.baseValue);
+}
+function gullDeliver(){
+  for (const f of gull.carried){
+    if (!f.scored && fishes.includes(f)){ f.dragging=false; f.carried=false; f.scored=true; scoreFish(f); }
+  }
+  gull.carried.length = 0;
+}
+function updateGull(dt){
+  if (!lvl("gull")) return;
+  const step = dt/16.6, sp = gullFlySpeed();
+  gull.wing += dt*0.018;
+
+  if (gull.state==="away"){
+    gull.t += dt;
+    if (gull.t >= gullInterval()){
+      const prey = gullCatchable();
+      if (prey.length){ gull.target=prey[0]; gull.state="incoming"; gull.x=-100; gull.y=90; gull.t=0; }
+      else gull.t = gullInterval()*0.6;            // pas de proie : réessaie bientôt
+    }
+    return;
+  }
+
+  let tx, ty;
+  if (gull.state==="incoming"){
+    const f = gull.target;
+    if (!f || !fishes.includes(f) || f.dragging || f.scored){ gull.target=null; gull.state="leaving"; }
+    else { tx=f.position.x; ty=f.position.y-34; }
+  }
+  if (gull.state==="carrying"){ tx=HOLE_X; ty=DOCK_Y+18-barrelHeight()-34; }
+  if (gull.state==="leaving"){  tx=W+150; ty=64; }
+
+  const dx=tx-gull.x, dy=ty-gull.y, d=Math.hypot(dx,dy)||1;
+  gull.vx=dx/d*sp; gull.vy=dy/d*sp;
+  gull.x += gull.vx*step; gull.y += gull.vy*step;
+
+  // poissons portés suivent la mouette
+  gull.carried = gull.carried.filter(f=>fishes.includes(f));
+  gull.carried.forEach((f,i)=>
+    Body.setPosition(f, { x:gull.x+(i-(gull.carried.length-1)/2)*22, y:gull.y+36 }));
+
+  if (gull.state==="incoming" && d<34){
+    const grab = gullCatchable().slice(0, gullCarry());
+    grab.forEach(g=>{ g.carried=true; g.dragging=true; });
+    gull.carried = grab;
+    gull.state = grab.length ? "carrying" : "leaving";
+  } else if (gull.state==="carrying" && d<30){
+    gullDeliver(); Sound.score(2); gull.state="leaving";
+  } else if (gull.state==="leaving" && gull.x>W+130){
+    gull.state="away"; gull.t=0; gull.carried.length=0; gull.target=null;
+  }
 }
 
 const fishes = [];   // bodies actifs
@@ -299,6 +521,8 @@ function spawnFish(x, y, speciesKey){
   f.flip = Math.random()<0.5 ? 1 : -1;
   f.wiggleT = Math.random()*1000;
   f.dragging = false;
+  // Poisson-Roi : fugace — il s'enfuit s'il n'est pas pêché à temps.
+  if (sp.fleeting) f.fleeUntil = now() + ROI_TTL;
   Body.setAngle(f, (Math.random()-0.5)*0.4);
   Body.setVelocity(f, { x:(Math.random()-0.5)*2, y:-1 });
   Body.setAngularVelocity(f, (Math.random()-0.5)*0.1);
@@ -338,21 +562,39 @@ Events.on(engine, "collisionStart", ev => {
 
 function scoreFish(f){
   const t = now();
+
+  // Déchet (vieille botte) : aucun gain, et ça casse le combo — il faut apprendre
+  // à NE PAS le jeter au trou. On le catalogue quand même (pour le bestiaire).
+  if (SPECIES[f.species].junk){
+    combo = 0;
+    S.totalCaught++;
+    S.caught[f.species] = (S.caught[f.species]||0) + 1;
+    Sound.splash();
+    floatText(f.position.x, f.position.y-20, "Beurk… +0$", "#9aa05a");
+    spawnSplash(HOLE_X, DOCK_Y+18-barrelHeight()+24, 0.6);
+    removeFish(f);
+    uiDirty = true;
+    return;
+  }
+
   // combo : enchaîner les prises rapproche le multiplicateur
-  combo = (t - lastScoreT < COMBO_WINDOW) ? combo+1 : 1;
+  combo = (t - lastScoreT < comboWindow()) ? combo+1 : 1;
   lastScoreT = t;
 
   const value = f.baseValue * gainMult() * comboMult();
   S.money += value;
   S.earnedThisRun += value;
+  S.totalEarned += value;
   S.totalCaught++;
+  S.caught[f.species] = (S.caught[f.species]||0) + 1;
+  if (combo > S.bestCombo) S.bestCombo = combo;
   scoreTimes.push(t);
   moneyLog.push({t, v:value});
 
   // frénésie : >10 poissons / seconde
   const wasFrenzy = frenzyUntil > t;
-  if (lvl("frenzy") && countRecent(1000) > 10){
-    frenzyUntil = t + 5000;
+  if (lvl("frenzy") && countRecent(1000) > frenzyThreshold()){
+    frenzyUntil = t + frenzyDur();
     if (!wasFrenzy){ Sound.frenzy(); shake = 12; }
   }
   // juice
@@ -377,6 +619,20 @@ Events.on(engine, "beforeUpdate", () => {
   for (const f of fishes){
     if (f.dragging) continue;
 
+    // Méduse : flotte vers le haut et dérive — difficile à garder près du trou,
+    // tend à s'échapper par le haut de l'écran si on ne la lance pas vite.
+    if (SPECIES[f.species].floaty){
+      Body.applyForce(f, f.position, { x:Math.sin(now()/600+f.wiggleT)*0.00006*f.mass,
+                                       y:-1.35*engine.gravity.y*f.mass*0.001 });
+    }
+
+    // Crabe : ÉVASIF — il rampe sur le ponton en s'éloignant du trou et sautille,
+    // luttant contre le tapis/râteau. Il faut l'attraper et le lancer à la main.
+    if (SPECIES[f.species].flees && f.position.y > DOCK_Y-70){
+      Body.applyForce(f, f.position, { x:-0.00014*f.mass, y:0 });   // marche à gauche (loin du trou)
+      if (Math.random()<0.03) Body.setVelocity(f, { x:-3-Math.random()*2, y:-3 });  // petit saut latéral
+    }
+
     // Tapis roulant
     if (lvl("conveyor") && f.position.x>CONV_X1 && f.position.x<CONV_X2
         && f.position.y > DOCK_Y-60){
@@ -390,6 +646,16 @@ Events.on(engine, "beforeUpdate", () => {
       const dist = Vector.magnitude(d) || 1;
       if (dist < 520){
         const pull = 0.00022 * f.mass * (1 - dist/520);
+        Body.applyForce(f, f.position, { x:d.x/dist*pull, y:d.y/dist*pull });
+      }
+    }
+    // Tonneau aimanté (prestige) : attraction douce et permanente vers le trou
+    else if (plvl("pmagnet")>0){
+      const R = 180 + plvl("pmagnet")*40;
+      const d = Vector.sub({x:HOLE_X,y:DOCK_Y-18}, f.position);
+      const dist = Vector.magnitude(d) || 1;
+      if (dist < R){
+        const pull = 0.00009 * f.mass * plvl("pmagnet") * (1 - dist/R);
         Body.applyForce(f, f.position, { x:d.x/dist*pull, y:d.y/dist*pull });
       }
     }
@@ -489,6 +755,7 @@ function startDrag(fish, p){
   sorted.forEach((f,i)=>{
     f.dragging=true;
     f.scored=false;
+    f.grabT=now();
     drag.offsets.push(i===0 ? {x:0,y:0}
       : { x:(Math.random()-0.5)*40, y:-(i*36) });
   });
@@ -504,6 +771,33 @@ function endDrag(){
     Body.setAngularVelocity(f, clamp(v.x*0.01,-0.5,0.5));
   });
   drag = { active:false, fish:[], offsets:[] };
+}
+
+// Méduse : la piqûre relâche tous les poissons tenus, casse le combo et secoue.
+function stungBy(med){
+  combo = 0;
+  shake = Math.min(18, shake+10);
+  Sound.zap();
+  floatText(med.position.x, med.position.y-24, "⚡ AÏE !", "#c9a6ff");
+  drag.fish.forEach(f=>{
+    f.dragging=false;
+    Body.setVelocity(f, { x:(Math.random()-0.5)*6, y:-6 });   // éjectés vers le haut
+    Body.setAngularVelocity(f, (Math.random()-0.5)*0.4);
+  });
+  drag = { active:false, fish:[], offsets:[] };
+}
+
+// Anguille : glisse hors de la main, repart d'un coup de queue. Elle reste pêchée,
+// il faut juste la rattraper (et viser le trou) malgré ses dérobades.
+function slipsAway(eel){
+  eel.dragging = false;
+  Body.setVelocity(eel, { x:(Math.random()-0.5)*10, y:-4-Math.random()*3 });
+  Body.setAngularVelocity(eel, (Math.random()-0.5)*0.6);
+  Sound.splash();
+  floatText(eel.position.x, eel.position.y-20, "↯ glisse !", "#7fe3c8");
+  const i = drag.fish.indexOf(eel);
+  if (i>=0){ drag.fish.splice(i,1); drag.offsets.splice(i,1); }
+  if (!drag.fish.length) drag = { active:false, fish:[], offsets:[] };
 }
 
 function pointerVelocity(){
@@ -549,9 +843,12 @@ function loop(){
     autoTimer += dt;
     if (autoTimer >= autoInterval()){
       autoTimer = 0;
-      doFish();
+      for (let m=0; m<autoMachines(); m++) doFish();   // flotte de machines (prestige)
     }
   }
+
+  // --- Mouette assistante (Phase 4) ---
+  updateGull(dt);
 
   // --- Râteau : suit le pointeur et pousse les poissons par collision ---
   if (rakeDrag && rake){
@@ -573,16 +870,39 @@ function loop(){
 
   // --- Drag : maintenir les poissons sur le pointeur ---
   if (drag.active){
-    drag.fish.forEach((f,i)=>{
-      const target = { x:pointer.x+drag.offsets[i].x, y:pointer.y+drag.offsets[i].y };
-      const np = Vector.add(f.position, Vector.mult(Vector.sub(target,f.position), 0.5));
-      Body.setPosition(f, np);
-      Body.setVelocity(f, {x:0,y:0});
-    });
+    // Méduse urticante : tenue trop longtemps en main, elle pique → combo perdu.
+    if (drag.fish.some(f=>SPECIES[f.species].sting && t-f.grabT > STING_MS)){
+      stungBy(drag.fish.find(f=>SPECIES[f.species].sting));
+    } else {
+      drag.fish.forEach((f,i)=>{
+        // Anguille glissante : après un court instant en main, elle peut filer.
+        if (SPECIES[f.species].slippery && t-f.grabT > 200 && Math.random() < 0.035){
+          slipsAway(f); return;
+        }
+        const target = { x:pointer.x+drag.offsets[i].x, y:pointer.y+drag.offsets[i].y };
+        const np = Vector.add(f.position, Vector.mult(Vector.sub(target,f.position), 0.5));
+        Body.setPosition(f, np);
+        Body.setVelocity(f, {x:0,y:0});
+      });
+    }
   }
 
   // --- Physique ---
   Engine.update(engine, 1000/60);
+
+  // Poisson-Roi : s'enfuit si non pêché à temps (plonge vers l'eau)
+  for (let i=fishes.length-1;i>=0;i--){
+    const f=fishes[i];
+    if (f.fleeUntil && !f.dragging && !f.scored && t>f.fleeUntil){
+      spawnSplash(f.position.x, Math.max(WATER_Y, f.position.y), 1.1);
+      floatText(f.position.x, f.position.y-24, "👑 s'enfuit !", "#ffc24a");
+      Sound.splash(); removeFish(f); continue;
+    }
+    if (f.fleeUntil && !f.dragging && t>f.fleeUntil-2200){
+      // dernières secondes : il frétille nerveusement (signal "attrape-moi vite !")
+      Body.applyForce(f, f.position, { x:Math.sin(t/90+f.wiggleT)*0.0006*f.mass, y:-0.0002*f.mass });
+    }
+  }
 
   // poissons tombés dans l'eau (premier plan) -> éclaboussure + perdu
   for (let i=fishes.length-1;i>=0;i--){
@@ -605,7 +925,7 @@ function loop(){
   }
 
   // combo : retombe si plus de prise dans la fenêtre
-  if (combo>0 && now()-lastScoreT > COMBO_WINDOW) combo=0;
+  if (combo>0 && now()-lastScoreT > comboWindow()) combo=0;
 
   updateParticles(dt);
   render();
@@ -670,7 +990,8 @@ function makeGolden(img){
 ctx = screenCtx;   // rendu direct (plus de buffer basse résolution)
 const ART = ["cat_idle","cat_cast","barrel","lantern","shadow_fish","post",
              "mountains","forest","plank","dock_side","fish_sardine","fish_saumon","fish_globe",
-             "fish_gold","splash_0","splash_1","splash_2","splash_3"];
+             "fish_meduse","fish_coffre","fish_crabe","fish_anguille","fish_botte","fish_roi",
+             "fish_gold","rake","gull","splash_0","splash_1","splash_2","splash_3"];
 ART.forEach(k => loadSprite(k, "assets/art/" + k + ".png"));
 
 let waveT = 0;
@@ -706,6 +1027,16 @@ function render(){
   ctx = screenCtx;
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Fond plein écran : évite les bandes noires quand l'écran est plus haut que
+  // le monde 16:9 (mobile portrait). Ciel en haut, eau en bas — prolonge la scène.
+  if (oy > 1){
+    const bg = ctx.createLinearGradient(0,0,0,canvas.height);
+    bg.addColorStop(0,    "#6a5a96");
+    bg.addColorStop(0.42, "#c98fb0");
+    bg.addColorStop(0.58, "#5a86a0");
+    bg.addColorStop(1,    "#21405a");
+    ctx.fillStyle=bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
   // screen-shake : décalage du rendu uniquement (le mapping souris garde ox/oy)
   if (shake>0.3){ shake*=0.86; } else shake=0;
   const shx = shake ? (Math.random()*2-1)*shake*scale : 0;
@@ -720,11 +1051,13 @@ function render(){
   drawLake();                 // le lac s'étend de l'horizon jusqu'au premier plan
   drawDock();                 // ponton posé sur l'eau
   if (lvl("conveyor")) drawConveyor();
+  drawWall();                 // mur rebond (derrière le seau)
   drawHole();
   drawLantern();
   drawCat();
   fishes.forEach(drawFish);
   drawRake();
+  drawGull();
   drawParticles();
   drawSplashes();
   drawFrenzyVignette();
@@ -891,23 +1224,46 @@ function drawRake(){
   ctx.rotate(rake.angle);
   // halo léger quand on le tient
   if (held){
-    const gl=ctx.createRadialGradient(0,0,0,0,0,80);
+    const gl=ctx.createRadialGradient(0,0,0,0,0,90);
     gl.addColorStop(0,"rgba(255,236,180,.30)"); gl.addColorStop(1,"rgba(255,236,180,0)");
-    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(0,0,80,0,7); ctx.fill();
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(0,0,90,0,7); ctx.fill();
   }
-  // manche en bois (part de la tête vers le haut-gauche)
-  ctx.lineCap="round";
-  ctx.strokeStyle="#6b4423"; ctx.lineWidth=10;
-  ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(-10,-78); ctx.stroke();
-  ctx.strokeStyle="#a9743b"; ctx.lineWidth=5;
-  ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(-10,-78); ctx.stroke();
-  // tête (barre)
-  ctx.fillStyle="#8a5a2b"; ctx.strokeStyle="#5e3c1a"; ctx.lineWidth=2;
-  roundRect(-RAKE_HEAD_W/2,-RAKE_HEAD_H/2,RAKE_HEAD_W,RAKE_HEAD_H,5); ctx.fill(); ctx.stroke();
-  // dents
-  ctx.fillStyle="#6b4423";
-  for (let x=-RAKE_HEAD_W/2+8; x<=RAKE_HEAD_W/2-8; x+=14){
-    ctx.fillRect(x-2, RAKE_HEAD_H/2-2, 5, 16);
+  const spr = SPRITES.rake;
+  if (spr){
+    // sprite vertical (manche en haut, dents en bas). On aligne la zone dents+tête
+    // sur le corps physique (barre verticale) ; le manche dépasse vers le haut.
+    const dh = RAKE_HEAD_H / 0.45;            // dents+tête ≈ 45% de la hauteur du sprite
+    const dw = dh * spr.w/spr.h;
+    ctx.drawImage(spr.img, -dw/2, RAKE_HEAD_H/2 - dh, dw, dh);
+  } else {
+    ctx.fillStyle="#8a5a2b"; ctx.strokeStyle="#5e3c1a"; ctx.lineWidth=2;
+    roundRect(-RAKE_HEAD_W/2,-RAKE_HEAD_H/2,RAKE_HEAD_W,RAKE_HEAD_H,5); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawWall(){
+  if (!wall) return;
+  const h = wallHeight(), w = 26, x = WALL_X, top = DOCK_Y+14 - h;
+  ctx.save();
+  ctx.fillStyle="#6b4a2a"; ctx.strokeStyle="#3a2614"; ctx.lineWidth=3;
+  roundRect(x-w/2, top, w, h, 5); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle="rgba(0,0,0,.22)"; ctx.lineWidth=2;
+  for (let yy=top+14; yy<DOCK_Y; yy+=18){ ctx.beginPath(); ctx.moveTo(x-w/2+2,yy); ctx.lineTo(x+w/2-2,yy); ctx.stroke(); }
+  ctx.fillStyle="rgba(255,221,150,.16)"; ctx.fillRect(x-w/2+2, top+2, 4, h-4);   // face éclairée (côté trou)
+  ctx.restore();
+}
+function drawGull(){
+  if (!lvl("gull") || gull.state==="away") return;
+  const spr = SPRITES.gull;
+  ctx.save();
+  ctx.translate(gull.x, gull.y + Math.sin(gull.wing)*3);   // léger flottement
+  ctx.scale(gull.vx>=0?1:-1, 1);
+  if (spr){
+    const dw = 104, dh = dw * spr.h/spr.w;
+    ctx.drawImage(spr.img, -dw/2, -dh/2, dw, dh);
+  } else {
+    ctx.fillStyle="#f5f7fb"; ctx.strokeStyle="#2b3340"; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.ellipse(0,0,22,12,0,0,7); ctx.fill(); ctx.stroke();
   }
   ctx.restore();
 }
@@ -1057,6 +1413,84 @@ function buildShop(){
   }
   const perm=$("perm-list"); perm.innerHTML=""; perm.className="tree";
   for (const def of PERM) perm.appendChild(makeNode(def, "perm"));
+  buildQuests();
+  buildBestiary();
+}
+
+function buildQuests(){
+  const list=$("quest-list"); list.innerHTML="";
+  for (const q of QUESTS){
+    const el=document.createElement("div"); el.className="quest"; el.dataset.id=q.id;
+    el.innerHTML=`
+      <div class="qtop"><span class="qemoji">${q.emoji}</span>
+        <span class="qname">${q.name}</span><span class="qreward"></span></div>
+      <div class="qbar"><div class="qfill"></div></div>
+      <div class="qfoot"><span class="qprog"></span><button class="qclaim">Réclamer</button></div>`;
+    el.querySelector(".qclaim").addEventListener("click", ()=>{ claimQuest(q); refreshQuests(); });
+    list.appendChild(el);
+  }
+}
+function refreshQuests(){
+  let anyClaim=false;
+  for (const q of QUESTS){
+    const el=document.querySelector(`.quest[data-id="${q.id}"]`); if(!el) continue;
+    const t=qCurrent(q);
+    if (!t){   // chaîne terminée
+      el.classList.add("done"); el.classList.remove("ready");
+      el.querySelector(".qname").textContent=q.name+" — ✓ Maîtrisé";
+      el.querySelector(".qreward").textContent="";
+      el.querySelector(".qfill").style.width="100%";
+      el.querySelector(".qprog").textContent="Tous les paliers atteints";
+      const b=el.querySelector(".qclaim"); b.hidden=true;
+      continue;
+    }
+    const val=q.metric(), pct=Math.min(100, val/t.goal*100), ready=val>=t.goal;
+    const showVal = q.big?fmt(val):Math.floor(val), showGoal=q.big?fmt(t.goal):t.goal;
+    el.classList.toggle("ready", ready);
+    el.querySelector(".qreward").textContent = t.gold?`+${t.gold} 🪙`:`+${fmt(t.money)} $`;
+    el.querySelector(".qfill").style.width=pct+"%";
+    el.querySelector(".qprog").textContent=`${showVal} / ${showGoal} ${q.unit}`;
+    const b=el.querySelector(".qclaim"); b.hidden=false; b.disabled=!ready;
+    b.textContent = ready?"Réclamer 🎁":"En cours…";
+    if (ready) anyClaim=true;
+  }
+  const dot=$("quest-dot"); if(dot) dot.hidden=!anyClaim;
+}
+
+function buildBestiary(){
+  const list=$("bestiary-list"); if(!list) return; list.innerHTML="";
+  for (const b of BESTIARY){
+    const el=document.createElement("div"); el.className="beast"; el.dataset.key=b.key;
+    el.innerHTML=`
+      <div class="bthumb"><img src="assets/art/fish_${b.key}.png" alt="" draggable="false"></div>
+      <div class="binfo">
+        <div class="bname"></div>
+        <div class="bblurb"></div>
+        <div class="btiers"></div>
+      </div>
+      <div class="bcount"></div>`;
+    list.appendChild(el);
+  }
+}
+function refreshBestiary(){
+  const sum=$("bestiary-bonus");
+  if (sum) sum.textContent = `+${Math.round((bestiaryMult()-1)*100)}% gains permanents`;
+  for (const b of BESTIARY){
+    const el=document.querySelector(`.beast[data-key="${b.key}"]`); if(!el) continue;
+    const sp=SPECIES[b.key], c=S.caught[b.key]||0, disc=discovered(b.key);
+    el.classList.toggle("locked", !disc);
+    el.querySelector(".bname").textContent  = disc ? `${b.emoji} ${sp.name}` : "❓ Espèce inconnue";
+    el.querySelector(".bblurb").textContent = disc ? b.blurb : "Pas encore pêchée…";
+    el.querySelector(".bcount").textContent = disc ? `×${fmt(c)}` : "";
+    const tiers=el.querySelector(".btiers"); tiers.innerHTML="";
+    BEST_TIERS.forEach(g=>{
+      const d=document.createElement("span");
+      d.className="bdot"+(c>=g?" on":"");
+      d.title=`${fmt(g)} pêchés → +${Math.round(BEST_BONUS*100)}% gains`;
+      d.textContent = c>=g ? "★" : "☆";
+      tiers.appendChild(d);
+    });
+  }
 }
 // phase la plus avancée atteinte (un nœud y est déverrouillé) + 1 en aperçu
 function revealLimit(){
@@ -1070,13 +1504,22 @@ function unlocked(def){
   if (def.id==="hole")     return lvl("bait")>=2 || lvl("magnet")>=1;
   if (def.id==="school")   return lvl("hole")>=1;
   if (def.id==="globebait")return lvl("hole")>=2;
+  if (def.id==="treasure") return lvl("hole")>=2;
+  if (def.id==="royal")    return lvl("hole")>=3;
   if (def.id==="conveyor") return lvl("hole")>=1;
   if (def.id==="net")      return lvl("hole")>=1;
   if (def.id==="auto")     return lvl("conveyor")>=1;
   if (def.id==="autospeed")return lvl("auto")>=1;
   if (def.id==="boost")    return lvl("conveyor")>=1;
   if (def.id==="frenzy")   return lvl("auto")>=1;
-  if (def.id==="vortex")   return lvl("frenzy")>=1;
+  // Phase 4 — La Volière : la mouette exige un premier sacrifice (le prestige sert enfin !)
+  if (def.id==="wall")     return lvl("frenzy")>=1;
+  if (def.id==="gull")     return S.prestiges>=1 && lvl("frenzy")>=1;
+  if (def.id==="gullspeed")return lvl("gull")>=1;
+  if (def.id==="gullcarry")return lvl("gull")>=1;
+  if (def.id==="royal")    return lvl("hole")>=3;
+  // Phase 5 — Le Vortex : l'aboutissement, plusieurs sacrifices requis
+  if (def.id==="vortex")   return S.prestiges>=3 && lvl("gull")>=1;
   return true;
 }
 
@@ -1104,6 +1547,7 @@ function onUpgrade(id){
   if (id==="hole"){ Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole); }
   if (id==="net" && lvl("net")) netBtn.hidden=false;
   if (id==="rake") ensureRake();
+  if (id==="wall") ensureWall();
   toast("Amélioration achetée !");
 }
 
@@ -1137,7 +1581,7 @@ function refreshShop(){
     setNode(n, {
       locked:!un, maxed, afford: un&&!maxed&&S.money>=c,
       lvlTxt: def.max>1?`Niv ${lv}/${def.max}`:(lv?"✓ Actif":""),
-      descTxt: un?def.desc(lv):"Continue de progresser pour débloquer",
+      descTxt: un?def.desc(lv):(def.req?def.req():"Continue de progresser pour débloquer"),
       btnTxt: maxed?"MAX":(un?`${fmt(c)} $`:"🔒 Verrouillé"),
       btnDisabled: maxed||!un,
     });
@@ -1168,6 +1612,8 @@ function refreshHUD(){
     netBtn.querySelector(".skill-cd").style.setProperty("--cd", (cd/NET_CD*100)+"%");
   }
   refreshShop();
+  refreshQuests();
+  refreshBestiary();
 }
 
 /* ---------------- Prestige ----------------------------------------------- */
@@ -1176,11 +1622,12 @@ $("prestige-btn").addEventListener("click", ()=>{
   if (g<1) return;
   if (!confirm(`Sacrifier ton empire pour ${g} Écaille(s) d'Or ?\nTout (argent + machines) sera réinitialisé.`)) return;
   Sound.prestige();
-  S.gold+=g;
+  S.gold+=g; S.prestiges++;
   S.up={}; S.money=startMoney(); S.earnedThisRun=0;
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; ensureRake(); frenzyUntil=0;
+  netBtn.hidden=true; ensureRake(); ensureWall(); frenzyUntil=0;
+  gull.state="away"; gull.carried.length=0; gull.target=null;
   toast(`+${g} 🪙 Écailles d'Or !`);
   uiDirty=true;
 });
@@ -1219,7 +1666,8 @@ $("reset-btn").addEventListener("click", ()=>{
   localStorage.removeItem(KEY); S=structuredClone(DEFAULT_STATE);
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; ensureRake(); uiDirty=true; refreshShop(); toast("Réinitialisé");
+  netBtn.hidden=true; ensureRake(); ensureWall(); uiDirty=true; refreshShop(); toast("Réinitialisé");
+  gull.state="away"; gull.carried.length=0; gull.target=null;
 });
 
 /* ---------------- Toast / hint ------------------------------------------- */
@@ -1262,6 +1710,7 @@ function fmt(n){
 load();
 if (S.up.net) netBtn.hidden=false;
 ensureRake();
+ensureWall();
 if (S.money===0 && S.earnedThisRun===0) S.money=startMoney();
 applyOffline();          // gains accumulés pendant l'absence
 buildShop();

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta http-equiv="Cache-Control" content="no-store" />
   <title>The Hole — Le Chat Pêcheur</title>
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <div id="app">
@@ -65,11 +65,25 @@
 
       <nav class="shop-tabs">
         <button class="tab active" data-tab="shop">Boutique</button>
+        <button class="tab" data-tab="quests">Quêtes<span id="quest-dot" class="tab-dot" hidden></span></button>
+        <button class="tab" data-tab="bestiary">Bestiaire</button>
         <button class="tab" data-tab="prestige">Sacrifice</button>
       </nav>
 
       <div id="tab-shop" class="tab-panel active">
         <div id="shop-list"><!-- généré par JS --></div>
+      </div>
+
+      <div id="tab-quests" class="tab-panel">
+        <div id="quest-list"><!-- généré par JS --></div>
+      </div>
+
+      <div id="tab-bestiary" class="tab-panel">
+        <div class="bestiary-head">
+          <p class="bestiary-intro">Pêche chaque espèce pour la cataloguer. Chaque palier de capture débloque un <b>bonus de gains permanent</b>.</p>
+          <div class="bestiary-bonus-pill">🏆 <span id="bestiary-bonus">+0% gains permanents</span></div>
+        </div>
+        <div id="bestiary-list"><!-- généré par JS --></div>
       </div>
 
       <div id="tab-prestige" class="tab-panel">

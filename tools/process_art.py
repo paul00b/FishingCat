@@ -27,6 +27,15 @@ JOBS = [
     ("forest.png",                   "forest",       "ban", 1024, True),
     ("plank.png",                    "plank",        "ban", 1024, True),
     ("dock_side.png",                "dock_side",    "ban", 1024, False),  # texture tuilée
+    # --- nouvelles espèces / outil ---
+    ("jellyfish.jpeg",               "fish_meduse",  "obj", 230, False),  # méduse (haute)
+    ("chest.png",                    "fish_coffre",  "obj", 210, True),   # coffre (jackpot lourd)
+    ("rake.jpeg",                    "rake",         "obj", 300, False),  # râteau (outil)
+    ("crabe.png",                    "fish_crabe",   "obj", 200, True),   # crabe (fuit le trou)
+    ("anguille.png",                 "fish_anguille","obj", 240, True),   # anguille (glissante)
+    ("botte.png",                    "fish_botte",   "obj", 160, True),   # déchet (sans valeur)
+    ("roi.png",                      "fish_roi",     "obj", 270, True),   # poisson-roi (légendaire)
+    ("seagull.png",                  "gull",         "obj", 150, True),   # mouette assistante
 ]
 
 KEY_THRESH = 45   # tolérance détection magenta : min(R,B)-G > seuil
