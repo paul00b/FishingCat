@@ -48,7 +48,7 @@ automate the whole loop; a prestige system ("Sacrifice") resets you for permanen
   1. *Le Manuel* — reel (faster), bait (value), magnet (grab N at once), **rake** (~$100).
   2. *Semi-Automatique* — bigger hole, **school**/**globebait**/**treasure** (raise saumon/globe/coffre spawn %), net skill (fish rain).
   3. *L'Usine* — auto-fisher (spawns only; delivery is manual or via the gull), **autospeed** (machine cadence), frenzy multiplier.
-  4. *La Volière* — **wall** (Mur Rebond: physical bouncy wall behind the barrel, `ensureWall`/`drawWall`, redirects overthrows), **gull** (Mouette: a flying helper, **requires prestige≥1**), **gullspeed**/**gullcarry** (its powers), **royal** (roi spawn %, hole≥3).
+  4. *La Volière* — **gull** (Mouette: a flying helper that delivers dock fish to the barrel, **requires prestige≥1**), **gullspeed**/**gullcarry** (its powers), **royal** (roi spawn %, hole≥3).
   5. *Le Vortex* — sucks nearby fish into the hole; **requires prestige≥3 + the gull**, and costs ~60M so permMult from several runs is needed. The true endgame.
 - **The Mouette (seagull)** is a runtime state machine (`gull` object, not saved): `away`→`incoming`→`carrying`→
   `leaving`. `updateGull()` (called each loop) flies it in, grabs the top `gullCarry()` catchable dock fish
@@ -102,7 +102,7 @@ The mid/late game was rebalanced to curb the post-`hole` snowball. The key lever
 - **Big-fish spawn rates** (`saumonRate`/`globeRate`) are the main mid-game throttle: tiny base,
   raised by the `school`/`globebait` paliers (deliberate, expensive money sinks).
 - **Prestige is intentionally slow:** `prestigeGain = floor(sqrt(earnedThisRun / 4_000_000))`.
-- **Late flat phase-gate costs are steep so the end is earned, not stumbled into** (frenzy 750k, wall 1.5M,
+- **Late flat phase-gate costs are steep so the end is earned, not stumbled into** (frenzy 750k,
   gull 6M, royal 9M, **vortex 400M**). Combined with the weak `permMult`, reaching the Vortex needs several
   prestige runs. Adjust these together if you change `baitMult`/`holeMult`/species values.
 - The auto machine is intentionally weak at unlock (3s, no reel benefit); power comes from `autospeed`.

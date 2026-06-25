@@ -89,11 +89,6 @@ const SHOP = [
   },
 
   { phase:"Phase 4 — La Volière" },
-  { id:"wall",  emoji:"🧱", name:"Mur Rebond", base:1500000, mult:2.4, max:5,
-    req:()=>`Nécessite la Frénésie`,
-    desc:l=>l===0?`Dresse un mur derrière le seau : les poissons trop lancés rebondissent vers le trou`
-                 :`Mur niv ${l} • rebond ×${wallBounce().toFixed(2)} • +haut`,
-  },
   { id:"gull",  emoji:"🐦", name:"Mouette Apprivoisée", base:6000000, mult:1, max:1,
     req:()=>`Nécessite 1 sacrifice 🌀`,
     desc:l=>l===0?`Engage une mouette : elle plonge régulièrement déposer un poisson dans le seau (débloque ses pouvoirs)`
@@ -216,8 +211,6 @@ function comboMaxMult(){ return 1 + (40 + plvl("pcombo")*12)*0.025; }
 function autoMachines(){ return 1 + plvl("pmachine"); }
 
 // --- Phase 4 « La Volière » : mur rebond + mouette assistante ---
-function wallHeight(){ return 80 + lvl("wall")*28; }                 // hauteur du mur (px monde)
-function wallBounce(){ return Math.min(1, 0.7 + lvl("wall")*0.07); }  // restitution (rebond, ≤1)
 function gullCarry(){ return 1 + lvl("gullcarry"); }                 // poissons par voyage
 function gullInterval(){ return Math.max(2600, 11000 - lvl("gullspeed")*1200); }
 function gullFlySpeed(){ return 5 + lvl("gullspeed")*0.9; }          // vitesse de vol
@@ -422,26 +415,14 @@ function respawnRake(){
   rake = makeRake(); Composite.add(world, rake);
 }
 
-/* ---------------- Mur Rebond (Phase 4) ----------------------------------- */
-// Mur statique derrière le seau : les poissons trop lancés rebondissent vers le trou.
-let wall = null;
-const WALL_X = HOLE_X + 98;
-function ensureWall(){
-  if (wall){ Composite.remove(world, wall); wall=null; }
-  if (lvl("wall")){
-    const h = wallHeight();
-    wall = staticBox(WALL_X, DOCK_Y + 14 - h/2, 20, h, { restitution:wallBounce(), friction:0.15 });
-    Composite.add(world, wall);
-  }
-}
-
 /* ---------------- La Mouette (Phase 4, assistante) ----------------------- */
 // Machine à états : attend hors-champ → fonce sur un poisson du ponton → l'emporte
 // au-dessus du seau → le dépose dedans → repart. Pouvoirs : cadence & contenance.
+const GULL_MAX_X = HOLE_X + 98;     // borne droite : la mouette n'attrape pas au-delà du seau
 let gull = { state:"away", t:0, x:-120, y:120, vx:0, vy:0, carried:[], wing:0 };
 function gullCatchable(){
   return fishes.filter(f => !f.dragging && !f.scored && !f.carried
-    && !SPECIES[f.species].junk && f.position.y > DOCK_Y-110 && f.position.x > 80 && f.position.x < WALL_X)
+    && !SPECIES[f.species].junk && f.position.y > DOCK_Y-110 && f.position.x > 80 && f.position.x < GULL_MAX_X)
     .sort((a,b)=> b.baseValue - a.baseValue);
 }
 function gullDeliver(){
@@ -1045,7 +1026,6 @@ function render(){
   drawLayer("forest",    HORIZON+8, 96);
   drawLake();                 // le lac s'étend de l'horizon jusqu'au premier plan
   drawDock();                 // ponton posé sur l'eau
-  drawWall();                 // mur rebond (derrière le seau)
   drawHole();
   drawLantern();
   drawCat();
@@ -1221,17 +1201,6 @@ function drawRake(){
     ctx.fillStyle="#8a5a2b"; ctx.strokeStyle="#5e3c1a"; ctx.lineWidth=2;
     roundRect(-RAKE_HEAD_W/2,-RAKE_HEAD_H/2,RAKE_HEAD_W,RAKE_HEAD_H,5); ctx.fill(); ctx.stroke();
   }
-  ctx.restore();
-}
-function drawWall(){
-  if (!wall) return;
-  const h = wallHeight(), w = 26, x = WALL_X, top = DOCK_Y+14 - h;
-  ctx.save();
-  ctx.fillStyle="#6b4a2a"; ctx.strokeStyle="#3a2614"; ctx.lineWidth=3;
-  roundRect(x-w/2, top, w, h, 5); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle="rgba(0,0,0,.22)"; ctx.lineWidth=2;
-  for (let yy=top+14; yy<DOCK_Y; yy+=18){ ctx.beginPath(); ctx.moveTo(x-w/2+2,yy); ctx.lineTo(x+w/2-2,yy); ctx.stroke(); }
-  ctx.fillStyle="rgba(255,221,150,.16)"; ctx.fillRect(x-w/2+2, top+2, 4, h-4);   // face éclairée (côté trou)
   ctx.restore();
 }
 function drawGull(){
@@ -1493,7 +1462,6 @@ function unlocked(def){
   if (def.id==="autospeed")return lvl("auto")>=1;
   if (def.id==="frenzy")   return lvl("auto")>=1;
   // Phase 4 — La Volière : la mouette exige un premier sacrifice (le prestige sert enfin !)
-  if (def.id==="wall")     return lvl("frenzy")>=1;
   if (def.id==="gull")     return S.prestiges>=1 && lvl("frenzy")>=1;
   if (def.id==="gullspeed")return lvl("gull")>=1;
   if (def.id==="gullcarry")return lvl("gull")>=1;
@@ -1527,7 +1495,6 @@ function onUpgrade(id){
   if (id==="hole"){ Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole); }
   if (id==="net" && lvl("net")) netBtn.hidden=false;
   if (id==="rake") ensureRake();
-  if (id==="wall") ensureWall();
   toast("Amélioration achetée !");
 }
 
@@ -1606,7 +1573,7 @@ $("prestige-btn").addEventListener("click", ()=>{
   S.up={}; S.money=startMoney(); S.earnedThisRun=0;
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; ensureRake(); ensureWall(); frenzyUntil=0;
+  netBtn.hidden=true; ensureRake(); frenzyUntil=0;
   gull.state="away"; gull.carried.length=0; gull.target=null;
   toast(`+${g} 🪙 Écailles d'Or !`);
   uiDirty=true;
@@ -1646,7 +1613,7 @@ $("reset-btn").addEventListener("click", ()=>{
   localStorage.removeItem(KEY); S=structuredClone(DEFAULT_STATE);
   fishes.slice().forEach(removeFish);
   Composite.remove(world,hole); hole=makeHole(); Composite.add(world,hole);
-  netBtn.hidden=true; ensureRake(); ensureWall(); uiDirty=true; refreshShop(); toast("Réinitialisé");
+  netBtn.hidden=true; ensureRake(); uiDirty=true; refreshShop(); toast("Réinitialisé");
   gull.state="away"; gull.carried.length=0; gull.target=null;
 });
 
@@ -1690,7 +1657,6 @@ function fmt(n){
 load();
 if (S.up.net) netBtn.hidden=false;
 ensureRake();
-ensureWall();
 if (S.money===0 && S.earnedThisRun===0) S.money=startMoney();
 applyOffline();          // gains accumulés pendant l'absence
 buildShop();
