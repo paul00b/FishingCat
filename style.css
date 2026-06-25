@@ -56,6 +56,15 @@ body{ user-select:none; -webkit-user-select:none; }
 #mute-btn:active{ transform:scale(.94); }
 #mute-btn.muted{ opacity:.5; }
 
+/* Secousses d'écran (à gauche du son) */
+#shake-btn{
+  position:absolute; bottom:18px; right:76px; width:48px; height:48px; border-radius:14px;
+  border:1px solid rgba(255,255,255,.08); background:rgba(8,20,32,.72); backdrop-filter:blur(8px);
+  color:#fff; font-size:22px; cursor:pointer; box-shadow:var(--shadow); z-index:5;
+}
+#shake-btn:active{ transform:scale(.94); }
+#shake-btn.off{ opacity:.5; }
+
 /* Replacer le râteau (au-dessus du bouton son) */
 #rake-reset{
   position:absolute; bottom:76px; right:18px; width:48px; height:48px; border-radius:14px;

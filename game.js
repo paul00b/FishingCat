@@ -34,6 +34,7 @@ const DEFAULT_STATE = {
   up: {},          // niveaux des améliorations
   perm: {},        // améliorations permanentes (écailles)
   seenHint: false,
+  screenShake: true,   // préférence : secousses d'écran activées
 };
 let S = structuredClone(DEFAULT_STATE);
 
@@ -1015,8 +1016,9 @@ function render(){
   }
   // screen-shake : décalage du rendu uniquement (le mapping souris garde ox/oy)
   if (shake>0.3){ shake*=0.86; } else shake=0;
-  const shx = shake ? (Math.random()*2-1)*shake*scale : 0;
-  const shy = shake ? (Math.random()*2-1)*shake*scale : 0;
+  const sh = (shake && S.screenShake!==false) ? shake : 0;   // désactivable (préférence)
+  const shx = sh ? (Math.random()*2-1)*sh*scale : 0;
+  const shy = sh ? (Math.random()*2-1)*sh*scale : 0;
   ctx.setTransform(scale,0,0,scale, ox+shx, oy+shy);
   ctx.imageSmoothingEnabled = false;   // pixels nets
 
@@ -1638,6 +1640,17 @@ $("mute-btn").addEventListener("click", e=>{
   const m=Sound.toggle(); e.currentTarget.textContent=m?"🔇":"🔊";
   e.currentTarget.classList.toggle("muted",m);
 });
+function applyShakeBtn(){
+  const b=$("shake-btn"); if(!b) return;
+  const on = S.screenShake!==false;
+  b.textContent = on ? "📳" : "📴";
+  b.classList.toggle("off", !on);
+}
+$("shake-btn").addEventListener("click", ()=>{
+  S.screenShake = !(S.screenShake!==false);   // bascule (true par défaut)
+  applyShakeBtn();
+  toast(S.screenShake ? "Secousses activées" : "Secousses désactivées");
+});
 $("rake-reset").addEventListener("click", ()=>{ respawnRake(); toast("Râteau replacé 🧹"); });
 
 /* ---------------- Utils --------------------------------------------------- */
@@ -1656,6 +1669,7 @@ function fmt(n){
  * ========================================================================= */
 load();
 if (S.up.net) netBtn.hidden=false;
+applyShakeBtn();
 ensureRake();
 if (S.money===0 && S.earnedThisRun===0) S.money=startMoney();
 applyOffline();          // gains accumulés pendant l'absence
