@@ -1005,9 +1005,9 @@ function render(){
   ctx = screenCtx;
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  // Fond plein écran : évite les bandes noires quand l'écran est plus haut que
-  // le monde 16:9 (mobile portrait). Ciel en haut, eau en bas — prolonge la scène.
-  if (oy > 1){
+  // Fond plein écran : évite les bandes noires de letterbox (portrait = bandes
+  // haut/bas, paysage = bandes gauche/droite). Ciel en haut, eau en bas.
+  if (oy > 1 || ox > 1){
     const bg = ctx.createLinearGradient(0,0,0,canvas.height);
     bg.addColorStop(0,    "#6a5a96");
     bg.addColorStop(0.42, "#c98fb0");
