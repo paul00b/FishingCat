@@ -29,7 +29,7 @@ automate the whole loop; a prestige system ("Sacrifice") resets you for permanen
   physics/scoring code:
   - 🪼 **méduse** (`floaty`+`sting`, 30): buoyant (rises in `beforeUpdate`) and **stings if held >`STING_MS`**
     → `stungBy()` zeroes combo & ejects the drag.
-  - 🦀 **crabe** (`flees`, 40): crawls left away from the hole in `beforeUpdate`, fighting the conveyor/rake.
+  - 🦀 **crabe** (`flees`, 40): crawls left away from the hole in `beforeUpdate`, fighting the rake.
   - 🐍 **anguille** (`slippery`, 80): random chance each frame to break the drag → `slipsAway()`.
   - 🥾 **botte** (`junk`, 0): worthless; scoring it in `scoreFish()` pays 0 and **resets combo** (early return).
   - 👑 **roi** (`fleeting`, 2500): legendary; `f.fleeUntil = now()+ROI_TTL`, flees (removed) in the main loop if not caught.
@@ -39,15 +39,15 @@ automate the whole loop; a prestige system ("Sacrifice") resets you for permanen
     roi 0.15) so passive income stays honest while manual skill earns full value.
   - Dedicated spawn-% paliers (deliberate money sinks, like `school`/`globebait`): `treasure` (Carte au Trésor →
     coffre, hole≥2) and `royal` (Leurre Royal → roi, hole≥3).
-- 🧰 **coffre** (`heavy`, 450): jackpot with ~10× density — nearly unthrowable by hand; needs rake/conveyor/vortex.
+- 🧰 **coffre** (`heavy`, 450): jackpot with ~10× density — nearly unthrowable by hand; needs rake/vortex.
 - **Juice:** combos, screen-shake, frenzy mode (×2 when >10 fish/sec), coin bursts, splashes,
   8-bit WebAudio synth (`Sound`, no sound files).
 - **Progression — 5 phases** (`SHOP` array, gated skill-tree; future phases shown as blurred "mystery").
   **Prestige is mandatory to finish:** late nodes are gated on `S.prestiges` in `unlocked()` — you *must*
   sacrifice several times to reach the end (locked nodes show a `def.req()` string explaining what's needed).
   1. *Le Manuel* — reel (faster), bait (value), magnet (grab N at once), **rake** (~$100).
-  2. *Semi-Automatique* — bigger hole, **school**/**globebait**/**treasure** (raise saumon/globe/coffre spawn %), conveyor belt, net skill (fish rain).
-  3. *L'Usine* — auto-fisher, **autospeed** (machine cadence), conveyor motor, frenzy multiplier.
+  2. *Semi-Automatique* — bigger hole, **school**/**globebait**/**treasure** (raise saumon/globe/coffre spawn %), net skill (fish rain).
+  3. *L'Usine* — auto-fisher (spawns only; delivery is manual or via the gull), **autospeed** (machine cadence), frenzy multiplier.
   4. *La Volière* — **wall** (Mur Rebond: physical bouncy wall behind the barrel, `ensureWall`/`drawWall`, redirects overthrows), **gull** (Mouette: a flying helper, **requires prestige≥1**), **gullspeed**/**gullcarry** (its powers), **royal** (roi spawn %, hole≥3).
   5. *Le Vortex* — sucks nearby fish into the hole; **requires prestige≥3 + the gull**, and costs ~60M so permMult from several runs is needed. The true endgame.
 - **The Mouette (seagull)** is a runtime state machine (`gull` object, not saved): `away`→`incoming`→`carrying`→
@@ -74,11 +74,13 @@ automate the whole loop; a prestige system ("Sacrifice") resets you for permanen
 - **Prestige** (`PERM` array): sacrifice your run for Écailles d'Or 🪙 → permanent multipliers
   (`pmult`), golden-fish chance (`pgold`), starting cash (`pstart`).
 - **Persistence:** `localStorage` key `thehole_save`, autosave every 8s + on unload/visibilitychange.
-  Offline earnings capped at 8h × 50% efficiency (`applyOffline`).
+  Offline earnings capped at 8h × 50% efficiency (`applyOffline`). `passivePerSec()` now requires
+  **auto + gull** (the Mouette delivers what the Machine spawns — there is no conveyor anymore), rated at
+  `min(spawnRate, gullDeliveryRate)`.
 
 ## Key constants & helpers (top of `game.js`)
 - World is fixed `W=1280 × H=720`, scaled/letterboxed to the canvas.
-- Layout x-coords: cat at `CAT_X=400`, barrel/hole at `HOLE_X=1135`, conveyor `CONV_X1..CONV_X2`.
+- Layout x-coords: cat at `CAT_X=400`, barrel/hole at `HOLE_X=1135`, net fish-rain band `CONV_X1..CONV_X2`.
 - `DOCK_Y=472` (dock surface), `WATER_Y=560` (fishing zone top).
 - Stat formulas are small pure functions: `fishInterval()`, `baitMult()`, `holeMult()`,
   `grabCount()`, `gainMult()`, `prestigeGain()`, etc.
@@ -92,12 +94,15 @@ The mid/late game was rebalanced to curb the post-`hole` snowball. The key lever
 - **holeMult** (`1 + lvl*0.3`) is deliberately gentle — bigger-fish *base values* (saumon 12, globe 60)
   are the real reward for the hole, not a stacked multiplier.
 - **goldenChance** = `plvl("pgold") * 0.01` (+1% per palier, max 10%; golden fish are ×100 value).
-- **PERM (sacrifice) costs are steep on purpose** — bases/mults raised (pmult 3·×2.8, pgold 5·×3,
-  pstart 4·×2.6) so each écaille investment spans multiple prestige runs.
+- **`permMult` is deliberately weak & ADDITIVE: `1 + pmult*0.02`** (+2% per palier, was the far-too-strong
+  `1.45^pmult`). Sacrifices must compound across *many* runs, not trivialize one. `pmult` cost is gentle
+  (3·×1.45, max 60) so it stays a long-term sink. If you re-tune prestige power, change this first.
+- **The magnet is an expensive luxury** (`base 600·×12`, max 5 → `grabCount` 1/2/3/5/8/12). Grabbing 12 at
+  once costs ~12M for the last level on purpose — it's a huge combo enabler.
 - **Big-fish spawn rates** (`saumonRate`/`globeRate`) are the main mid-game throttle: tiny base,
   raised by the `school`/`globebait` paliers (deliberate, expensive money sinks).
-- **Prestige is intentionally slow:** `prestigeGain = floor(sqrt(earnedThisRun / 4_000_000))` and the
-  permanent multiplier is `1.45^pmult` (was 1.7 — too strong). Tune these two together.
-- Flat phase-gate costs (hole, conveyor, net, auto, frenzy, vortex) are set so payback time keeps
-  growing relative to income. Adjust these together if you change `baitMult`/`holeMult`/species values.
+- **Prestige is intentionally slow:** `prestigeGain = floor(sqrt(earnedThisRun / 4_000_000))`.
+- **Late flat phase-gate costs are steep so the end is earned, not stumbled into** (frenzy 750k, wall 1.5M,
+  gull 6M, royal 9M, **vortex 400M**). Combined with the weak `permMult`, reaching the Vortex needs several
+  prestige runs. Adjust these together if you change `baitMult`/`holeMult`/species values.
 - The auto machine is intentionally weak at unlock (3s, no reel benefit); power comes from `autospeed`.

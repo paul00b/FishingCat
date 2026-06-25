@@ -18,7 +18,7 @@ const WATER_Y  = 560;            // haut de la zone d'eau (pêche)
 const SPAWN_X1 = 110, SPAWN_X2 = 320;   // zone de spawn (derrière le chat)
 const CAT_X    = 400;
 const HOLE_X   = 1135;           // centre du trou / seau
-const CONV_X1  = 470, CONV_X2 = 1055;   // emprise du tapis roulant
+const CONV_X1  = 470, CONV_X2 = 1055;   // zone de pluie de l'épuisette (net)
 
 /* ---------------- État du jeu -------------------------------------------- */
 const DEFAULT_STATE = {
@@ -47,7 +47,7 @@ const SHOP = [
   { id:"bait",  emoji:"🪱", name:"Appât Savoureux", base:18,  mult:1.6, max:45,
     desc:l=>`Valeur des poissons ×${fmt(baitMult())}`,
   },
-  { id:"magnet",emoji:"🧲", name:"Aimant", base:200, mult:7, max:5,
+  { id:"magnet",emoji:"🧲", name:"Aimant", base:600, mult:12, max:5,
     desc:l=>`Attrape ${grabCount()} poisson(s) à la fois`,
   },
   { id:"rake",  emoji:"🧹", name:"Râteau", base:100, mult:1, max:1,
@@ -73,61 +73,55 @@ const SHOP = [
     desc:l=>lvl("hole")<2?`Nécessite le Trou niveau 2`
                          :`Apparition des Coffres (jackpot lourd) : ${(coffreRate()*100).toFixed(1)}%`,
   },
-  { id:"conveyor",emoji:"🛤️", name:"Tapis Roulant", base:4000, mult:1, max:1,
-    desc:l=>l===0?`Pousse les poissons vers le trou tout seul`:`Tapis actif ✓`,
-  },
   { id:"net",   emoji:"🪣", name:"Épuisette (actif)", base:7500, mult:1, max:1,
     desc:l=>l===0?`Compétence : fait pleuvoir 10 poissons`:`Compétence débloquée ✓`,
   },
 
   { phase:"Phase 3 — L'Usine" },
   { id:"auto",  emoji:"🤖", name:"Machine à Pêcher", base:60000, mult:1, max:1,
-    desc:l=>l===0?`Pêche seule, 1 poisson / 3 s (gains hors-ligne !)`:`Pêche auto active ✓`,
+    desc:l=>l===0?`Pêche seule, 1 poisson / 3 s — à toi (ou à la Mouette) de les déposer`:`Pêche auto active ✓`,
   },
   { id:"autospeed", emoji:"⚡", name:"Survolteur de Machine", base:45000, mult:1.65, max:12,
     desc:l=>`Cadence de la machine. Délai : ${(autoInterval()/1000).toFixed(2)}s`,
   },
-  { id:"boost", emoji:"⚙️", name:"Moteur de Tapis", base:9000, mult:2.2, max:10,
-    desc:l=>`Force du tapis ×${convForceMult().toFixed(1)}`,
-  },
-  { id:"frenzy",emoji:"🔥", name:"Mult. Frénétique", base:200000, mult:1, max:1,
+  { id:"frenzy",emoji:"🔥", name:"Mult. Frénétique", base:750000, mult:1, max:1,
     desc:l=>l===0?`+10 poissons/s dans le trou ⇒ gains ×2 (5s)`:`Frénésie active ✓`,
   },
 
   { phase:"Phase 4 — La Volière" },
-  { id:"wall",  emoji:"🧱", name:"Mur Rebond", base:300000, mult:2.2, max:5,
+  { id:"wall",  emoji:"🧱", name:"Mur Rebond", base:1500000, mult:2.4, max:5,
     req:()=>`Nécessite la Frénésie`,
     desc:l=>l===0?`Dresse un mur derrière le seau : les poissons trop lancés rebondissent vers le trou`
                  :`Mur niv ${l} • rebond ×${wallBounce().toFixed(2)} • +haut`,
   },
-  { id:"gull",  emoji:"🐦", name:"Mouette Apprivoisée", base:900000, mult:1, max:1,
+  { id:"gull",  emoji:"🐦", name:"Mouette Apprivoisée", base:6000000, mult:1, max:1,
     req:()=>`Nécessite 1 sacrifice 🌀`,
     desc:l=>l===0?`Engage une mouette : elle plonge régulièrement déposer un poisson dans le seau (débloque ses pouvoirs)`
                  :`Mouette active ✓ — porte ${gullCarry()} poisson(s), toutes les ${(gullInterval()/1000).toFixed(1)}s`,
   },
-  { id:"gullspeed", emoji:"🪶", name:"Vol Rapide", base:500000, mult:1.7, max:8,
+  { id:"gullspeed", emoji:"🪶", name:"Vol Rapide", base:1500000, mult:1.9, max:8,
     req:()=>`Nécessite la Mouette`,
     desc:l=>`Mouette plus rapide & fréquente — passage toutes les ${(gullInterval()/1000).toFixed(1)}s`,
   },
-  { id:"gullcarry", emoji:"🎒", name:"Bec Vorace", base:1200000, mult:2.2, max:5,
+  { id:"gullcarry", emoji:"🎒", name:"Bec Vorace", base:4000000, mult:2.4, max:5,
     req:()=>`Nécessite la Mouette`,
     desc:l=>`La mouette emporte ${gullCarry()} poisson(s) par voyage`,
   },
-  { id:"royal", emoji:"👑", name:"Leurre Royal", base:1500000, mult:2.7, max:6,
+  { id:"royal", emoji:"👑", name:"Leurre Royal", base:9000000, mult:2.9, max:6,
     req:()=>`Nécessite le Trou niveau 3`,
     desc:l=>`Apparition du Poisson-Roi (légendaire fugace) : ${(roiRate()*100).toFixed(2)}%`,
   },
 
   { phase:"Phase 5 — Le Vortex" },
-  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:60000000, mult:1, max:1,
+  { id:"vortex",emoji:"🌀", name:"Le Vortex", base:400000000, mult:1, max:1,
     req:()=>`Nécessite 3 sacrifices 🌀 + la Mouette`,
     desc:l=>l===0?`Le trou aspire tous les poissons alentour. L'aboutissement — il faudra plusieurs sacrifices pour se l'offrir.`:`Vortex actif ✓`,
   },
 ];
 
 const PERM = [
-  { id:"pmult", emoji:"✨", name:"Gains Éternels", base:3, mult:2.8, max:40,
-    desc:l=>`Tous les gains ×${fmt(permMult())} (permanent)`,
+  { id:"pmult", emoji:"✨", name:"Gains Éternels", base:3, mult:1.45, max:60,
+    desc:l=>`+${Math.round((permMult()-1)*100)}% à tous les gains (permanent) • +2% / palier`,
   },
   { id:"pgold", emoji:"🐠", name:"Poissons Dorés", base:5, mult:3, max:10,
     desc:l=>`+1% de poissons dorés / palier → ${(goldenChance()*100).toFixed(0)}% (×100 valeur)`,
@@ -176,7 +170,7 @@ const BESTIARY = [
   { key:"crabe",   emoji:"🦀", blurb:"Évasif : il rampe sur le ponton en fuyant le trou. Attrape-le et lance-le vite avant qu'il ne replonge." },
   { key:"botte",   emoji:"🥾", blurb:"Un déchet sans valeur qui encombre le ponton. La jeter au trou ne rapporte rien et casse ton combo : écarte-la." },
   { key:"anguille",emoji:"🐍", blurb:"Glissante : elle se tortille et file hors de ta main. Difficile à garder et à viser." },
-  { key:"coffre",  emoji:"🧰", blurb:"Jackpot. Si lourd qu'on ne peut pas le lancer à la main : pousse-le avec le râteau, le tapis ou le vortex." },
+  { key:"coffre",  emoji:"🧰", blurb:"Jackpot. Si lourd qu'on ne peut pas le lancer à la main : pousse-le avec le râteau ou aspire-le au vortex." },
   { key:"roi",     emoji:"👑", blurb:"Légendaire ! Une fortune… mais il s'enfuit en quelques secondes. Une chasse éclair réservée à l'endgame (trou niv 3)." },
 ];
 const discovered = key => (S.caught[key]||0) > 0;
@@ -211,8 +205,7 @@ function autoInterval(){ return Math.max(700, 3000 * Math.pow(0.82, lvl("autospe
 function baitMult(){ return Math.pow(1.5, lvl("bait")); }                 // ×1.5 par niveau
 function holeMult(){ return 1 + lvl("hole") * 0.3; }                      // bonus de valeur
 function grabCount(){ return [1,2,3,5,8,12][Math.min(lvl("magnet"),5)]; }
-function convForceMult(){ return 1 + lvl("boost") * 0.8; }
-function permMult(){ return Math.pow(1.45, plvl("pmult")); }
+function permMult(){ return 1 + plvl("pmult")*0.02; }   // +2% par palier (additif, lent)
 function goldenChance(){ return plvl("pgold") * 0.01; }   // +1% par palier (max 10%)
 function startMoney(){ return plvl("pstart") * 500 * Math.pow(2.5, plvl("pstart")); }
 // prestige étendu
@@ -255,10 +248,14 @@ function avgFishValue(){
   v += Math.max(0, 1-used) * SPECIES.sardine.value;
   return v * (1 + 99*goldenChance());
 }
-// revenu passif estimé ($/s) — nécessite Machine + Tapis
+// revenu passif estimé ($/s) — la Mouette livre ce que la Machine pêche (Machine + Mouette).
+// Sans mouette, rien n'est déposé tout seul : il faut jouer (râteau / lancer / vortex).
 function passivePerSec(){
-  if (!lvl("auto") || !lvl("conveyor")) return 0;
-  return (1000/autoInterval()) * autoMachines() * avgFishValue() * baitMult() * holeMult() * permMult() * bestiaryMult();
+  if (!lvl("auto") || !lvl("gull")) return 0;
+  const spawnRate = autoMachines() * 1000/autoInterval();   // poissons/s produits par la machine
+  const gullRate  = gullCarry()    * 1000/gullInterval();   // poissons/s livrés par la mouette
+  const rate = Math.min(spawnRate, gullRate);               // goulot = le plus lent des deux
+  return rate * avgFishValue() * baitMult() * holeMult() * permMult() * bestiaryMult();
 }
 
 /* ---------------- Espèces de poissons ------------------------------------ */
@@ -270,7 +267,7 @@ const SPECIES = {
   // tient trop longtemps en main, elle pique → combo remis à zéro. À lancer vite.
   meduse:  { name:"Méduse",   value:30,  w:52, h:62, density:0.0006, color:"#bcd8f0", belly:"#ffd8e6", floaty:true, sting:true, autoMul:0.7 },
   // Coffre : jackpot LOURD. Quasi impossible à lancer à la main — il faut le
-  // pousser (râteau / tapis / vortex). Très rare.
+  // pousser (râteau / vortex). Très rare.
   coffre:  { name:"Coffre",   value:450, w:72, h:58, density:0.0140, color:"#caa15a", belly:"#ffe0a0", heavy:true },
   // Crabe : ÉVASIF. Marche latéralement et fuit le trou ; il faut l'attraper vite.
   crabe:   { name:"Crabe",    value:40,  w:58, h:44, density:0.0016, color:"#e8612e", belly:"#ffb47a", flees:true, autoMul:0.4 },
@@ -614,7 +611,7 @@ function countRecent(ms){
   return scoreTimes.filter(x=>x>t).length;
 }
 
-/* ---------------- Force du tapis & vortex (beforeUpdate) ----------------- */
+/* ---------------- Vortex & forces sur les poissons (beforeUpdate) -------- */
 Events.on(engine, "beforeUpdate", () => {
   for (const f of fishes){
     if (f.dragging) continue;
@@ -622,22 +619,20 @@ Events.on(engine, "beforeUpdate", () => {
     // Méduse : flotte vers le haut et dérive — difficile à garder près du trou,
     // tend à s'échapper par le haut de l'écran si on ne la lance pas vite.
     if (SPECIES[f.species].floaty){
+      // Monte doucement mais PLAFONNE : la méduse flotte vers une bande haute du
+      // ponton puis y reste, attrapable — elle ne s'échappe plus par le haut.
+      const CEIL = DOCK_Y - 150;                                  // ~322 : zone d'équilibre
+      const lift = f.position.y > CEIL ? -1.03 : -0.45;           // remonte sous le plafond, retombe au-dessus
       Body.applyForce(f, f.position, { x:Math.sin(now()/600+f.wiggleT)*0.00006*f.mass,
-                                       y:-1.35*engine.gravity.y*f.mass*0.001 });
+                                       y: lift*engine.gravity.y*f.mass*0.001 });
+      if (f.velocity.y < -3.2) Body.setVelocity(f, { x:f.velocity.x, y:-3.2 });  // bride la montée
     }
 
     // Crabe : ÉVASIF — il rampe sur le ponton en s'éloignant du trou et sautille,
-    // luttant contre le tapis/râteau. Il faut l'attraper et le lancer à la main.
+    // luttant contre le râteau. Il faut l'attraper et le lancer à la main.
     if (SPECIES[f.species].flees && f.position.y > DOCK_Y-70){
       Body.applyForce(f, f.position, { x:-0.00014*f.mass, y:0 });   // marche à gauche (loin du trou)
       if (Math.random()<0.03) Body.setVelocity(f, { x:-3-Math.random()*2, y:-3 });  // petit saut latéral
-    }
-
-    // Tapis roulant
-    if (lvl("conveyor") && f.position.x>CONV_X1 && f.position.x<CONV_X2
-        && f.position.y > DOCK_Y-60){
-      Body.applyForce(f, f.position,
-        { x: 0.00010 * f.mass * convForceMult(), y: 0 });
     }
 
     // Vortex : aspiration vers le trou
@@ -1050,7 +1045,6 @@ function render(){
   drawLayer("forest",    HORIZON+8, 96);
   drawLake();                 // le lac s'étend de l'horizon jusqu'au premier plan
   drawDock();                 // ponton posé sur l'eau
-  if (lvl("conveyor")) drawConveyor();
   drawWall();                 // mur rebond (derrière le seau)
   drawHole();
   drawLantern();
@@ -1164,18 +1158,6 @@ function drawDock(){
     if (SPRITES.post) drawSprite("post", px, H+8, H-(WATER_Y-14), 0.5, 1);
     else { ctx.fillStyle="#6b4a2b"; ctx.fillRect(px-10, WATER_Y-6, 20, H); }
   }
-}
-function drawConveyor(){
-  const y = DOCK_Y-6;
-  ctx.fillStyle="#2b2f36"; ctx.fillRect(CONV_X1,y-8,CONV_X2-CONV_X1,18);
-  ctx.fillStyle="#454b54";
-  const off = (Math.floor(waveT*40))%30;
-  for (let x=CONV_X1; x<CONV_X2; x+=30){ ctx.fillRect(x+off,y-6,16,14); }
-  ctx.fillStyle="#1c1f24";
-  ctx.beginPath(); ctx.arc(CONV_X1,y+1,11,0,7); ctx.arc(CONV_X2,y+1,11,0,7); ctx.fill();
-  ctx.fillStyle="rgba(120,255,180,.5)";
-  for (let x=CONV_X1+40; x<CONV_X2-20; x+=90){
-    ctx.beginPath(); ctx.moveTo(x,y-2); ctx.lineTo(x+14,y+1); ctx.lineTo(x,y+4); ctx.fill(); }
 }
 function drawHole(){
   const frenzy = frenzyUntil>now();
@@ -1506,11 +1488,9 @@ function unlocked(def){
   if (def.id==="globebait")return lvl("hole")>=2;
   if (def.id==="treasure") return lvl("hole")>=2;
   if (def.id==="royal")    return lvl("hole")>=3;
-  if (def.id==="conveyor") return lvl("hole")>=1;
   if (def.id==="net")      return lvl("hole")>=1;
-  if (def.id==="auto")     return lvl("conveyor")>=1;
+  if (def.id==="auto")     return lvl("hole")>=2;
   if (def.id==="autospeed")return lvl("auto")>=1;
-  if (def.id==="boost")    return lvl("conveyor")>=1;
   if (def.id==="frenzy")   return lvl("auto")>=1;
   // Phase 4 — La Volière : la mouette exige un premier sacrifice (le prestige sert enfin !)
   if (def.id==="wall")     return lvl("frenzy")>=1;
