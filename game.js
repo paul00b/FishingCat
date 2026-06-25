@@ -194,7 +194,8 @@ const plvl = id => S.perm[id] || 0;
 
 function cost(def, level){ return Math.floor(def.base * Math.pow(def.mult, level)); }
 
-function fishInterval(){ return Math.max(220, 3000 * Math.pow(0.85, lvl("reel"))); }
+// Pêche manuelle : de 3 s à 0,5 s, réparti régulièrement sur les 18 niveaux du Moulinet.
+function fishInterval(){ return Math.max(500, 3000 * Math.pow(0.905, lvl("reel"))); }
 // La machine a sa PROPRE cadence : 3 s de base, améliorée uniquement par son
 // survolteur (indépendante du Moulinet manuel).
 function autoInterval(){ return Math.max(700, 3000 * Math.pow(0.82, lvl("autospeed"))); }
